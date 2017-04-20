@@ -1,0 +1,2672 @@
+**********************************************
+***    Achilles' SSBM reference             ***
+***                                        *********************************
+***  - The structure and contents of this file originated from wParam's  ***
+***     SSBM reference. A note from him which still applies:             ***
+***                                                                      ***
+***  Not guaranteed to contain anything useful, or even to make sense    ***
+***  at all.  Read or use this file at your own risk.  If you can do     ***
+***  something cool based on this information, great, go for it, just    ***
+***  give me a little credit.  The idea behind this file is that it      ***
+***  will contain the things I discover in a format that is somewhat     ***
+***  clearer than the scratchpad.  Unfortunately, not everything that    ***
+***  gets into the scratchpad makes it into this file.                   ***
+***                                                                      ***
+****************************************************************************
+
+
+
+
+********************************************************
+		Variable/table addresses
+********************************************************
+803C2800   Move table
+803C12E0   Extended move table table (indexes 0x155 and up)
+		(Indexed by "internal" player index)
+803D0B00   Mewtwo's table
+803CCCB8   Peach's table
+803C7120   Mario's table
+
+80479D30   Menu Controller, "Heart" of smash brothers
+
+804D4A08   DbLevel Flag 
+8049FAB0   Develop item type
+8049FAB4   Develop pokemon type
+804D6728   Develop CPU processor stats pointer (=0 if off)
+804D6B50   ECB toggle value
+
+8045BF28   Current unlocked chars/start of memcard data
+
+
+8045D850   Start of nametag data (Vulnerable name on memory card)
+8045d928   Pointer to branch to on buffer overflow (currently 8045d930)
+80469b94   End of last nametag (start of 20XX debug menu flag saves)
+8046B0EC   End of memcard data (61892/F1C4 total)
+
+
+80453080   Player blocks.  (0xE90 in length)
+
+8046B488   "Multi-man-craziness"_t
+8046B6A0   Match info (+0x28 = seconds left)
+
+804C1FAC   Button values, length 68/0x44.
+				0x00 = constant
+				0x04 = constant, last frame
+                0x08 = instant
+                0x10 = released
+                0x18 = jX, byte
+                0x19 = jY, byte
+                0x1A = cX, byte
+                0x1B = cY, byte
+                0x1C = L analog, byte
+                0x1D = R analog, byte
+                0x1E = ?? byte A (soft analog L?)
+                0x1F = ?? byte B (soft analog R?)
+                0x20 = joystick x-axis, float
+                0x24 = joystick y-axis
+                0x28 = c-stick x-axis, float (-1 to 1)
+                0x2c = c-stick y-axis, float (-1 to 1)
+                0x30 = L analog, float 
+                0x34 = R analog, float
+                0x38 = ?? float A (soft analog L?)
+                0x3C = ?? float B (soft analog R?)
+				0x41 = Controller plugged in (00 = yes, FF = no), byte
+
+803F14C4   Item action function table (itemaction_t 0x3C each)
+
+8046DB68   Looks like a copy of the StartMelee block
+8046DB80   Facts about current match.  (+0x8 -> item switch values.)
+
+80452C68   camera_t
+
+804D36A0 - 804E36A0   r13 space
+
+Button to move link functions:
+-----------------------------------------
+803C10D0	called on start/stop [jigglypuff & kirby only]
+803C1154	called on start/stop match
+803C11D8	called on start/stop match
+803C125C	[only jigglypuff has this one]
+803C12E0	move_t table addresses
+803C1364	
+803C13E8	side+b (ground)
+803C146C	up+b (air)
+803C1574	side+b (air)
+803C15F8	b button (air)
+803C167C	b button (ground)
+803C1700	down+b (ground)
+803C1784	up+b (ground)
+803C1808	empty, except ness, gamewatch
+803C188C	"Get Item"
+803C1910	
+
+
+********************************************************
+		Function addresses
+********************************************************
+
+8000522C   Entry point of ssbm.dol
+
+80003220   memcpy (void *dest, void *src, int length)
+800031F4   memmove (void *dest, void *src, int length)
+80003130   memset (void *addy, int value, int length)
+803238C8   memcmp (void *one, void *two, int length)
+80301E58   strcpy (needs verified)
+
+8037F1E4   void *malloc(int size); [note: blocks allocated are cached elsewhere,
+		so this func isn't the one called for ALL allocations, but it
+		is still helpful enough to be listed here.]
+
+80388220   assert() (or, rather, the function that's called when an
+		assert fails)
+803456a8   printf(), of some kind.
+
+800693AC   CharActionStateChange (running char block, state, flags, flags)
+
+8016E730   StartMelee (meleeblock_t)
+802FFF2C   CopyDebugToMeleeType (meleeblock_t *out)
+
+8016AE80   GetItemFrequency ()
+802255A4   Returns first frame button preses (int charindex) (develop only)
+8022558C   Returns button presses (develop only)
+80225754   HandleDevelopKeys()
+80034110   player_t *PlayerFromIndex (int index)
+8006CC7C   void DamagePlayer (r3=*SUB*player_t, f1=damage amount)
+
+Heart related:
+801A42F8   Write r3 to new major function (and go?)
+801A428C   Write r3 to new major function
+801A42A0   Write r3 to new minor function
+801A4B60   Write 1 to "go" (writes [word] int 1 to 8047D964)
+801A42D4   Write 1 to "heart" + 12
+801A43A0   Run Major state (takes state index; doesn't return until done)
+		Does, however, mess up state, so don't call directly.
+
+Debug Menu Related:
+801b09C0   Initialize main debug menu
+801B09F8   Exiting Debug Menu, r3 at +0x1C controls what screen to go to after exit
+
+Move related:
+8008DCE0   Generic take damage (move mods at 8008E258)
+80094A14   Called when you pick up an item
+8009447C   ApplyInstantItem (player_t, item_t)
+800D1FFC   Small mushroom on ground
+800D21BC   Small mushroom in air
+800D170C   Big mushroom on ground
+800D18CC   Big mushroom in air
+80090B60   DoFreezie (not sure how long it's applied for)
+8027AB64   SpawnPokemon (unsure)
+8007FA58   GiveBunnyHood (player, item[?])
+8007F8E8   RemoveBunnyHood (player)  (?)
+800C88D4   ApplyCloaking (player, duration, bool something)
+800C8A64   RemoveCloaking (player)  (?)
+800871A8   ApplyMetalItem (player, item) [need to use this, not ApplyMetal]
+800C8348   ApplyMetal (player, duration, something (0x32)) [incomplete]
+800C8540   RemoveMetal (player)
+8007B7FC   ApplyStarman (player, duration)
+800C0200   RemoveStarman (player, something) (probably)
+80390CFC   RunObjectFrameFuncs () (one blrl for each item, player, etc.)
+8006A360   RunPlayerObject (player_t *)
+802C5000   SpawnProjectile (?)
+800DEBD0   DoPlayerTaunt()
+800693AC   SetPlayerState(player_t *, int newstate, int ?, int ?)
+8026B3C0   CountItemsOfType (int type)
+
+8026C75C   int ChooseRandomItem (void *someparam);
+80268B18   entity_t *SpawnEntity (spawnitem_t *, int one);
+8026A8EC   DestroyItem (item_t)
+800948A8   GiveItemToPlayer (player_t, item_t) [check for existing item before
+		calling.  This will put instant items like metal boxes in their
+		hand instead of activating it.  Call this followed immediately
+		by ApplyInstantItem to activate it.]
+80086724   RemoveItemFromPlayer (player_t, item_t)
+800942A0   CheckForItems (player_t) [Seems to walk the item list looking for
+		items within range of a player.  Called when you press A on the
+		ground or Z in the air.  Returns NULL if no item found]
+8026AD20   ThrowItem (item_t *, vec3_t *pos, vec3_t *vel, int =1, float f1=1.0)
+800027E4   UnhookedThrowItem
+80225d1c   Returns the develop mode pokemon type
+8027a4d4   ChooseRandomPokemon() (returns internal pokemon type)
+800860C4   CountPlayers() (walks the player entity list, returns count)
+8046AF00   ssbm+: SlotToButtons (r3=slot from subplayer+C, returns pointer in 804C1FAC or 0)
+8046AEC0   ssbm+: fcfi, r3=int, returns (double)r3 in f8
+
+80041EE4   InitPhys (phys_t)
+80043754   RunPhys (func *, phys_t *, int flags)
+
+80031AD0   SetupPlayerSlot (int slot);  [Called on melee start, it calls 
+		AllocateAndInitPlayer for each running player.  It calls
+		AAIP again to allocate nana, if appropriate.]
+
+80068E98   AllocateAndInitPlayer (spawnplayer_t *)
+
+8006CA5C   PlayerThink(player_t *) (once per player per frame)
+8006A360   PlayerAlsoThink(player_t *)
+
+8001BE30   SaveGameData ()
+		r3  : 0 = Slot A, 1 = Slot B  
+		r4  : 803BAC5C  "SuperSmashBros01..."
+		r5  : 803BAB74  directs the thing on what to save.
+		r6  : 80433334  [the strings that go in the file] appears to be all
+		r7  : 80BE7CE0  points to the picture data
+		r8  : 80BEACE0  i believe this is the icon
+		r9  : 8043331C  points to just before strings in r6
+		r10 : 8001CC30  if (r3==0)return; *(80433318+8) = 2; (OnComplete() function)
+		r11 : 00000000
+
+
+
+8001A4CC   Related to finding files on memcard (char *filename, int zero)
+8001BD34   Load from memcard (int unknown, char *name, void *sameasr5fromsave)
+8001BE28   mtlr from Load (executed AFTER data is loaded)
+8001CBBC   DoLoadData (no params, handles all of the loading tasks)
+
+8001bC18   CreateGameData
+		r3: 0 = Slot A, 1 = Slot B
+		r4: Pointer to internal file name (SuperSmashBros0110290334) (803bac5c)
+		r5: Pointer to data table containing what data to copy (803bab74)
+		r6: Pointer to flags regarding banner/icon image format (803bab60)
+		r7: Pointer to file name (80433334) (Super Smash Bros. Melee...Game Data..)
+		r8: Pointer to banner image (806f0300)
+		r9: Pointer to icon image (806f4b00)
+		r10: 8043331c (card plugged/unplugged status, seems to be unused)
+
+	Return values (r3):
+	0: Success
+	1: File already exists (for creating, doesn't save if so)
+	4: File doesn't exist (for loading/deleting file)
+	9: ??? Maybe the card isn't formatted or something
+	F: No card inserted
+
+********************************************************
+		Value tables
+********************************************************
+
+Characters:  (external/internal/name)
+----------------------------------
+00 02 falcon
+01 03 donkey
+02 01 fox
+03 18 game&watch
+04 04 kirby
+05 05 bowser
+06 06 link
+07 11 luigi
+08 00 mario
+09 12 marth
+0A 10 mewtwo
+0B 08 ness
+0C 09 peach
+0D 0C pikachu
+0E 0A/0B ice climbers
+0F 0F jigglypuff
+10 0D samus
+11 0E yoshi
+12 13 zelda
+13 07 shiek
+14 16 falco
+15 14 y. link
+16 15 drmario
+17 1A roy
+18 17 pichu
+19 19 ganondorf
+1A 1B master hand
+1B 1D male wireframe
+1C 1E female wireframe
+1D 1F giga bowser
+1E 1C crazy hand
+1F 20 sandbag
+20 0A popo (ice climbers)
+
+
+Player flags
+------------
+0x01	stamina mode
+0x02	no talking
+0x04	low gravity
+0x08	invisible
+0x10	black stock icon
+0x20	metal
+0x40	start the match on warp-in platform
+0x80	controller rumble enabled
+
+
+Stage flags
+-----------
+0x20	No character interaction (pokemon battle)
+	Also means no get-on-touch items
+
+
+Pokemon (decimal) (external, from the debug menu)
+Internally, the item type is (external - 1) + 0xA1
+--------
+00	random
+01	goldeen
+02	green blade thing ("chiku")
+03	snorlax
+04	blastoise
+05	wheezing
+06	charizard
+07	fire bird
+08	thunder bird
+09	ice bird
+10	wabbafet
+11	ceasar
+12	beedril wannabe
+13	fire dog
+14	thunder dog
+15	ice dog
+16	bellosom
+17	voltorb
+18	lugia
+19	houou
+20	ditto
+21	clefairy
+22	togepi
+23	mew
+24	celebi
+25	starman
+26	chansey
+27	porygon
+28	irritating fire thing
+29	maril
+30	venusaur
+
+
+
+Items (decimal/hex/name)
+-------------------------------
+## 0x   Item
+------------------
+00 00	capsule
+01 01	box
+02 02	barrel
+03 03	egg
+04 04	partyball
+05 05	cannon
+06 06	bombomb
+07 07	mr. saturn
+08 08	heart
+09 09	tomato
+10 0A	star
+11 0B	bat
+12 0C	sword
+13 0D	umbrella
+14 0E	green shell
+15 0F	red shell
+16 10	gun
+17 11	freezie
+18 12	food
+19 13	mine
+20 14	bumper
+21 15	super scope
+22 16	star rod
+23 17	lip stick
+24 18	fan
+25 19	fire flower
+26 1A	big mushroom
+27 1B	small mushroom
+28 1C	hammer
+29 1D	warp star
+30 1E	screw attack
+31 1F	rabbit hood
+32 20	metal
+33 21	cloak
+34 22	pokeball
+43 2B	goomba
+44 2C	redead
+45 2D	octarok
+46 2E	otosea
+
+2F Stone
+30 Mario's fire 
+31 Dr.Mario's Capsule 
+32 Kirby's Cutter beam 
+33 Kirby's Hammer 
+34 Raygun beam 
+35 
+36 Fox's laser 
+37 ? Falco's Laser ? 
+38 Fox's shadow 
+39 Falco's shadow 
+3A Link's bomb 
+3B Young Link's bomb 
+3C Link's boomerang 
+3D Young Link's boomerang 
+3E Link's Hookshot 
+3F Young Link's Hookshot 
+40 Arrow 
+41 Fire Arrow 
+42 PK Fire 
+43 PK Flash 
+44 PK Flash 
+45 PK Thunder 
+46 PK Thunder 
+47 PK Thunder 
+48 PK Thunder 
+49 PK Thunder 
+4A Fox's Blaster 
+4B Falco's Blaster 
+4C ? Link's Arrow ? 
+4D Young Link's arrow 
+4E PK Flash (explosion) 
+4F Needle(thrown) 
+50 Needle 
+51 Pikachu's Thunder 
+52 Pichu's Thunder 
+53 Mario's cape 
+54 Dr.Mario's cape 
+55 Smoke (Sheik) 
+56 Yoshi's egg(thrown) 
+57 
+58 Yoshi's Star 
+59 Pikachu's thunder 
+5A Pikachu's thunder 
+5B Pichu's thunder 
+5C Pichu's thunder 
+5D Samus's bomb 
+5E Samus's chargeshot 
+5F Missile 
+60 Grapple beam 
+61 Sheik's chain 
+62 
+63 Turnip 
+64 Bowser's flame 
+65 Ness's bat 
+66 Yoyo 
+67 Peach's parasol 
+68 Toad 
+69 Luigi's fire 
+6A Ice(Iceclimbers) 
+6B Blizzard 
+6C Zelda's fire 
+6D Zelda's fire (explosion) 
+6E 
+6F Toad's spore 
+70 Mewtwo's Shadowball 
+71 Iceclimbers' Up-B 
+72 Pesticide 
+73 Manhole 
+74 Fire(G&W) 
+75 Parashute 
+76 Turtle 
+77 Sperky 
+78 Judge 
+79 
+7A Sausage 
+7B Milk (Young Link) 
+7C Firefighter(G&W) 
+7D Masterhand's laser 
+7E Masterhand's bullet 
+7F 
+80 
+81 Crazyhand's Bomb 
+82 
+83 
+84 
+85 
+86 
+87 
+88 
+89 
+8A 
+8B 
+8C 
+8D 
+8E 
+8F 
+90 
+91 
+92 
+93 
+94 
+95 
+96 
+97  (crashes with peach pulls out) 
+98 
+99 
+9A 
+9B 
+9C 
+9D 
+9E Coin 
+9F 
+A0 Null pokemon entry? 
+A1 Goldeen (Tosakinto) 
+A2 Chicorita 
+A3 Snorlax 
+A4 Blastoise 
+A5 Weezing (Matadogas) 
+A6 Charizard (Lizardon) 
+A7 Moltres 
+A8 Zapdos 
+A9 Articuno 
+AA Wobbuffet 
+AB Scizor 
+AC Unown 
+AD Entei 
+AE Raikou 
+AF Suicune 
+B0 Bellossom (Kireihana) 
+B1 Electrode (Marumine) 
+B2 Lugia 
+B3 Ho-oh 
+B4 Metamon 
+B5 Clefairy 
+B6 Togepi 
+B7 Mew 
+B8 Celebi 
+B9 Staryu (Hitodeman) 
+BA Chansey 
+BB Porygon2 
+BC Cyndaquil (Hinoarashi) 
+BD Marill 
+BE Venusaur (Fushigibana) 
+BF Chikorita's Leaf 
+C0 Blastoise's Water  
+C1 Weezing's Gas 
+C2 Weezing's Gas 
+C3 Burn ??? Fire something 
+C4 Burn ??? Fire something 
+C5 Charizard's Breath 
+C6 Charizard's Breath 
+C7 Unowns 
+C8 Lugia's Aeroblast 
+C9 Lugia's Aeroblast 
+CA Lugia's Aeroblast 
+CB Ho-oh's Flame 
+CC Staryu's Star 
+CD Healing Egg 
+CE Cyndaquil's Fire 
+CF ??? invisible 
+D0 
+D1 Target 
+D2 Shyguy (Heiho) 
+D3 Koopa(Green) (Nokonoko) 
+D4 Koopa(Red) (PataPata) 
+D5 Likelile 
+D6 (old-lead) 
+D7 (old-octa) 
+D8 (old-otto) 
+D9 White Bear (whitebea) 
+DA klap 
+DB Paratroopa (Green) (zgshell) 
+DC Paratroopa (Red) (zrshell) 
+DD 
+DE 
+DF 
+E0 (crashes with peach pulls out) 
+E1 Apple 
+E2 
+E3 
+E4 
+E5 
+E6 Tool 
+E7 
+E8 
+EA Arwing Laser 
+EB Wolfen Laser 
+EC 
+ED 
+EE 
+EF 
+F0 
+F1 
+F2 
+F3 
+F4 
+F5 
+F6 
+F7 
+F8 
+F9 (crashes with peach pulls out) 
+FA 
+FB 
+FC 
+FD 
+FE 
+FF
+
+D-pad moves
+-----------
+1: Nothing
+2: call 0x80001b10
+3: ToggleComputer
+4: Become visible
+5: Become invisible
+8: Get big mushroom in hand
+9: Get mini mushroom in hand
+18:POW block effect
+35:Clear all status effects
+36:ToggleComputer0
+37:ToggleComputer1
+38:ToggleComputer2
+39:ToggleComputer3
+40:Hammerhead
+
+Item bits to item switch entries
+--------------------------------
+Item 0x04
+0x08=POW box
+0x04=Poke Ball
+0x02=Invisibility
+0x01=Metal Box
+
+Item 0x03
+0x80=Bunny Hood
+0x40=Screw Attack
+0x20=Warp Star
+0x10=Hammer
+0x08=Poison Mushroom
+0x04=Super Mushroom
+0x02=Fire Flower
+0x01=Fan
+
+Item 0x02
+0x80=Lipstick
+0x40=Star Rod
+0x20=Super Scope
+0x10=Flipper
+0x08=Motion-Sensor Bomb
+0x04=Food
+0x02=Freezie
+0x01=Ray Gun
+
+Item 0x01
+0x80=Red Shell
+0x40=Green Shell
+0x20=Parasol
+0x10=Beam Sword
+0x80=Home-Run Bat
+0x04=Starman
+0x02=Maxim Tomato
+0x01=Heart Container
+
+Item 0x00
+0x80=Mr. Saturn
+0x40=Bob-omb
+0x20=Barrel Cannon
+0x10=Party Ball
+0x08=Probably nothing, on by default
+0x04=Barrel
+0x02=Crate
+0x01=Capsule
+
+
+Menu IDs (menu major)
+------------------
+00 - Title Screen (Press Start)
+01 - Reloads menu from language change? (brings to language change selection and saves)
+02 - VS mode character select
+03 - Classic Mode
+04 - Adventure Mode
+05 - All-Star Mode
+06 - Debug Menu
+07 - Master Sound Test
+08 - Looks like regular VS mode, but actually cycles through many different character select screens
+09 - Black Screen...?
+0A (10) - Camera Mode
+0B (11) - Trophy Gallery
+0C (12) - Trophy Lottery
+0D (13) - Trophy Collection
+0E (14) - Starts a match (with the debug menu configurations?)
+0F (15) - Target Test
+10 (16) - Super Sudden Death
+11 (17) - Invisible Melee
+12 (18) - Slo-Mo Melee
+13 (19) - Lightning Melee
+14 (20) - "A new foe has appeared!" (Ganon with sword, freezes if you try to progress, ID from debug?)
+15 (21) - Classic Mode trophy acquisition & credits (C.Falcon, ID from debug?)
+16 (22) - Adventure Mode trophy acquisition & credits (C.Falcon, ID from debug?)
+17 (23) - All-Star Mode trophy acquisition & credits (C.Falcon, ID from debug?)
+18 (24) - Intro video
+19 (25) - Cycles through Adventure Mode cinematics
+1A (26) - Character trophy acquisition (no credits) (uses All-Star trophy) (C.Falcon, ID from debug?)
+1B (27) - Tournament Menu
+1C (28) - Training Mode
+1D (29) - Tiny Melee
+1E (30) - Giant Melee
+1F (31) - Stamina Mode
+20 (32) - Home-Run Contest
+21 (33) - 10-Man Melee
+22 (34) - 100-Man Melee
+23 (35) - 3-Minute Melee
+24 (36) - 15-Minute Melee
+25 (37) - Endless Melee
+26 (38) - Cruel Melee
+27 (39) - "Enable Progressive Scan Display?"
+28 (40) - Plays Intro Video
+29 (41) - Memory Card Overwrite Confirmation
+2A (42) - Fixed-Camera Mode
+2B (43) - Loads Event Match 1 (Match ID from the debug menu?)
+2C (44) - Single-Button Mode
+
+
+Button Inputs
+-------------------
+	1000 = START
+	0200 = B
+	0100 = A
+	0800 = Y
+	0400 = X
+	0010 = Z
+	0040 = L
+	0020 = R
+	0008 = D UP
+	0004 = D DOWN
+	0001 = D LEFT
+	0002 = D RIGHT
+
+
+Stage configuration word (Crazy Mod Specific)
+------------------------
+SC word 1:
+#  0x01: Big mushrooms are deadly
+#  0x02: Small mushrooms are deadly
+#  0x04: Any damage is deadly
+#  0x08: Players are invisible
+#  0x10: Items are invisible
+#  0x20: D-pad moves cost coins instead of health.
+#  0x40: Items never disappear
+#  0x80: Fixed camera
+SC word 2:
+#  0x01: Stage locked (no changing by graphical menu)
+#  0x02: Top/bottom of dummy wraps around
+#  0x04: Sides of dummy wrap around
+#  0x08: Infinite 3rd jumps
+#  0x10: Players stuck to the floor
+#  0x20: Item steal enabled
+#  0x40: Hot saturn potato enabled
+#  0x80: Fancy throwing enabled
+
+
+********************************************************
+		Struct types
+********************************************************
+
+
+  Debug menu
+----------------------------------------------------
+#define MENUTYPE_LABEL 		0
+#define MENUTYPE_CALLFUNC 	1
+#define MENUTYPE_ENUM 		2
+#define MENUTYPE_INT 		3
+#define MENUTYPE_INT_UNBOUNDED	4 //I've never seen this used
+#define MENUTYPE_HEX8BIT	5
+#define MENUTYPE_HEX16BIT	6
+#define MENUTYPE_HEX32BIT	7
+#define MENUTYPE_FLOAT		8
+#define MENUTYPE_END_MENU	9
+
+debug menu struct:
+{
+	int type;
+	void *func; //seems to take only 1 parameter
+	char *text;
+	char **enumtexts;
+	void *data; //pointer to where data goes
+	float mindata; //inclusive
+	float maxdata; //inclusive
+	float delta;
+}
+for the function, r3=0 means menu changed, r3=4 means menu displayed
+type - One of the MENUTYPE_ values defined above
+func - A pointer to some code.  Value of r3 determines what action
+	to take.  (Detailed research into this has not been written)
+enumtexts - Pointer to a list of pointers to text.  This is how enum
+	values are displayed; as far as I know this parameter is ignored
+	for all other types.  No bounds checking is performed, and no
+	terminating NULL is needed.  There must be enough pointers to
+	satisfy the range specified by the mindata and maxdata elements
+	or the game will crash when it tries to display an invalid entry.
+	Quick example.  Let's say you have the text "One" at 0x80001234,
+	"Two" at 0x8000133C, and "Four" at 0x803CFF84.  To use these in
+	an enum, you would need to store the byte pattern:
+	80 00 12 34 80 00 13 3C 80 3C FF 84
+	in memory and store the address of the first byte in enumtexts.
+data - Pointer to data to be modified; interpretation depends on the 
+	type
+mindata - Minimum data value, inclusive.  Not used by HEX types.
+	(Hex types always let you go from 0x00 to 0xFF)
+maxdata - Maximum data value, inclusive.  Not used by HEX types.
+delta - How much the data changes at each step.  Used by int, float, 
+	and the hex types.
+
+The function takes one paramater, a small int.
+r3 = 0 -> Menu item is being hidden.
+r3 = 1 -> User pressed A on menu.
+r3 = 2 -> Value decremented
+r3 = 3 -> Value incremented
+r3 = 4 -> User pressed B on menu.
+It seems returning 0 is the norm.
+
+
+  Move tables
+-------------------------------------------
+move_t
+{
+	int index
+	int unknown1
+	int unknown2
+	void *onentryfunc (?) (notcalled?)
+	void *somefunc
+	void *somefunc
+	void *somefunc
+	void *usually800761C8
+};
+
+The index is the most interesting.  At first I thought it was just
+some sort of animation index, because it sort of corresponds to the
+index of the move_t in the table, but not really.  No, though, it
+actually controls quite a bit more than that.  You can change just
+the index for something and get a completely different move.  Current
+best theory is that the index goes into yet another table somewhere
+that controls move, and the functions are only concerned with graphical
+effects.
+
+Note:  the index does not link to the "button to move link function
+tables".  Mewtwo's down+b and side+b don't match up.
+
+Argh, index, why do you toy with me so?  80085cd8 receives the player
+and the index.  If I force the index to always be the same, then
+THE ANIMATIONS ARE ALWAYS THE SAME.  In general, moves still work the same
+way, but not always.  (There's a timing constraint related to the animation.)
+
+More update.  I tried replacing all 7 things EXCEPT the index.  The move
+STILL won't work.  It took away the rapid fire a button attack.  If I set
+the index, the move started /looking/ right, but was still not working.
+
+Current best theory: Actual work for b button moves is in button move
+link functions.  I am seriously starting to thing that the entire move_t
+is nothing but graphical.
+
+No, no, those functions DO AFFECT GAMEPLAY.  I'm wondering if CharStateChange
+should be renamed to "RunMove".  Noping out the call to charstatechange in the
+button move link function for side+b results in _NO MOVE BEING PERFORMED_.
+
+Each of those functions is called every frame.  Somewhere inside, useful
+stuff happens.  Dandy-tastic.
+
+Here's a mind bender.  Replacing EVERY ONE OF MARIO'S SIDE B VALUES
+with an empty function does NOTHING to affect the move.  It only affects
+whether mario comes to a full stop before waving the cape.
+
+
+
+The player type.
+----------------------------------------------
+DataOffset
+
+
+These all refer to the "sub player", the one you get by
+loading a pointer value 44 bytes ahead of the root "player"
+struct.  (I think this root struct is actually a generic entity
+for the game)
+
+subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
+{
+	0x0000  point  Pointer back to entity_t
+	0x0004  word   Character ID (internal)
+	0x0008  word   Spawn number since beginning of match (1-indexed), increments with every rebirth
+	0x000C  byte   Player slot (only 1 byte long, other 3 probably padding garbage)
+	0x0010  word   action state
+	0x0014  word   animation state (subaction)
+	0x0018  word   action state ID # for start of character-dependent move table logic   
+	0x001C  point	common move table (803c2800)
+	0x0020  point   character dependent move table
+	0x0024	point  Pointer to subaction data. ("move swap code value")
+	0x0028  point	End of hitbox data pointer (?)
+	0x002C  float  Player facing direction (-1 = left, 1 = right, moves environment boxes)
+	0x0030  float  Player facing direction again (of previous action state)
+	0x0034  float  Player scale.  (read on map start)
+	0x0038  float  Player scale.  (set according to 0x34, seems to affect physics)
+	0x003C  float  Player Z scale factor (makes you really wide)
+	0x0040         Some sort of vertical model offset
+	0x0050  float  ??
+	0x0074	float  ??
+	0x0078	float  ?? (set to 0 when jumping)
+	0x007C	float  ??
+	0x0080	float  X velocity (air, self-induced)
+	0x0084	float  Y velocity (self-induced)
+	0x0088	float  Z velocity
+	0x008C  float  X velocity (attack-induced)
+	0x0090  float  Y velocity (attack-induced)
+	0x0098  float  X velocity (Atk-Shd KB)
+	0x009C  float  Y velocity (Atk-Shd KB)
+	0x00A0  float  ?? (set to 0 when jumping)
+	0x00A4  float  ?? subtracted from X veloc
+	0x00A8  float  ?? subtracted from Y veloc
+	0x00B0	float  X coord - TopN
+	0x00B4	float  Y coord - TopN
+	0x00B8	float  Z coord - TopN
+	0x00BC	float  X coord, again (prev. frame)
+	0x00C0	float  Y coord, again
+	0x00C4	float  Z coord, again
+	0x00C8  float  X delta (last frame to this frame)
+	0x00CC	float  Y delta (last frame to this frame)
+	0x00D0	float  Z delta (last frame to this frame)
+	0x00D4  float
+	0x00D8  float
+	0x00DC  float
+	0x00E0	word   air (1) /ground state (0)
+	0x00E4  float  ??
+	0x00E8  float  value to add to below x-velocity
+	0x00EC	float  X velocity (ground, self induced)
+	0x00F0  float	X velocity (ground, traction?)
+	0x00F4  float  ??
+	0x00F8  float  nudge X coord addition
+	0x00FC  float  nudge Z coord addition
+	0x0100	float  ??
+	0x0104	byte   counter of some sort
+	0x010C  point  Pointer to a pointer to the start of player attributes deep in RAM
+
+*Current Char Attributes*
+	0x0110  float  Walk initial velocity
+	0x0114  float  Walk acceleration
+	0x0118  float  walk maximum velocity
+	0x011C  float  slow walk max?
+	0x014C	float  Jump H initial velocity
+	0x0150	float  Jump V initial velocity
+	0x0154	float  Ground to air jump momentum multiplier
+	0x0158	float  Jump H maximum velocity
+	0x015C  float  Hop V initial velocity
+	0x0160  float  Air Jump V multiplier
+	0x0164  float  Air Jump H multiplier
+	0x0168	word   Number of jumps
+	0x016C	float  Gravity
+	0x0170	float  Terminal velocity
+	0x0174  float  Air Mobility A
+	0x017C  float  
+	0x0184  float  Fastfall velocity
+	0x018C  float  Jab2 frame window
+	0x0190  float  Jab3 frame window
+	0x0198  float  weight
+	0x019C  float  Model scaling
+	0x01A4  float  Shield break initial velocity
+	0x01A8  float  Rapid jab window (A button instant/release counter)
+	0x01F0         Kirby B star damage
+	0x01F4  float  normal landing lag
+	0x01F8  float  nair landing lag
+	0x01FC  float  fair landing lag
+	0x0200  float  bair landing lag
+	0x0204  float  uair landing lag
+	0x0208  float  dair landing lag
+	0x020C  float  victory screen window model scaling
+	0x0214  float  walljump H velocity
+	0x0218  float  walljump V velocity
+	0x0258	float  walljump min x-delta to walljump?
+	0x025C         bubble ratio?
+	0x0270         ice traction?
+	0x028C	float  ??
+	0x0294	float	Item pickup Range X Translation - Ground
+	0x0298	float	Item pickup Range Y Translation - Ground
+	0x029C	float	Item Pickup Range Width - Ground
+	0x02A0	float	Item Picup Range Height - Ground
+	0x02A4	float	?? X Translation - Ground
+	0x02A8	float	?? Y Translation - Ground
+	0x02AC	float	?? Width - Ground
+	0x02B0	float	?? Height - Ground
+	0x02B4	float	Item pickup Range X Translation - Air
+	0x02B8	float	Item pickup Range Y Translation - Air
+	0x02BC	float	Item Pickup Range Width - Air
+	0x02C0	float	Item Picup Range Height - Air
+		0x02C4  ----start of something new (?)---
+	0x02D4  point  Special Move Floats offset begin
+	0x02D8  word   ?? pointer to struct of size 0x424
+	0x02EC  float  SpecialFallLand animation speed mult (higher = faster)
+	0x02F0	
+	0x03E8  float  Frame counter (resets to 1 with each new action state)
+	0x0430  word   Color data selector flag (if 0, apply second color data)
+	0x0444  float  ?? start of current subaction timer info
+	0x0448  float  subaction frame timer
+	0x044c  point  current subaction script line
+	0x0450  point  ?? something for subaction?
+					- for 0x14 command, it is an int counter
+	0x0454	point	GOTO pointer RAM return script line
+	0x0490  Color  blend pointer (same stuff as from item_t)
+	0x04B0  float  ?? 800df61c
+	0x04B4  word   rrggbbaa color applied. This is calculated and written every frame from the color floats below  
+	0x04B8	float  red (used by 0x490 stuff)
+	0x04BC	float  green (used by 0x490 stuff)
+	0x04C0	float  blue (used by 0x490 stuff)
+	0x04C4	float  alpha (used by 0x490 stuff)
+	0x04C8  float  red flash rate
+	0x04CC  float  green flash rate
+	0x04D0  float  blue flash rate
+	0x04D4  float  alpha flash rate
+	0x0504  byte   Flag values: 0x80 or higher == use color
+	0x058C	word   flags?
+	0x0594  byte   ?? checked against 01 in physics playerthink
+	0x0596	half   ?? flags
+	0x059C	point   ?? 
+	0x05A4	word   ?? flags
+	0x05A8	word   ?? flags
+	0x05AC	word	Number of char model view flags (?)
+	0x05CC  word   Number of char model something
+	0x05D4	point	model struct?
+						0x64 = ?? 80070694
+	0x05E8  point  Animation data pointer (?)
+					- 0x10 in length each
+					0x00	point	bone structure
+					0x04	point	??
+					0x08	byte	flags
+						(08) = 
+						(40) = 
+						(80) = 
+	0x05F4  byte   Character model view flags (ex. Ganon sword)
+	0x05F5  byte   Character model view flags
+	0x05F6  short? Character model view flags
+	0x05F8	short? Character model view flags
+	0x060C	start of a sub-struct
+	0x060C	point	??
+	0x0610	byte   Subcolor RED
+	0x0611  byte   Subcolor GREEN
+	0x0612	byte   Subcolor BLUE
+	0x0613	byte   Subcolor ALPHA
+	0x0618  byte   Player control index (what player's button inputs are used)
+	0x0619  byte   costume ID
+	0x061A  byte   subcolor ID
+					00 = no sub color
+					01 = light
+					02 = dark
+					03 = black
+					04 = gray
+					05 = red (need code so doesnt freeze)
+	0x061B  byte   team ID
+					04 = Team CPU
+	0x0620  float  Joystick X axis (float; -1.0-1.0)
+	0x0624  float  Joystick Y axis (float; -1.0-1.0)
+	0x0628  float  Joystick X axis previous frame
+	0x062c  float  Joystick Y axis previous frame
+	0x0630	float	??
+	0x0634	float	??
+	0x0638	float  C-stick X axis (float; -1.0-1.0)
+	0x063C	float  C-stick Y axis (float; -1.0-1.0)
+	0x0640  float  C-stick X axis previous frame
+	0x0644  float  C-stick Y axis previous frame
+	0x0650  float  Analog trigger data
+	0x0654  float  Analog trigger data previous frame (unchecked)
+	0x065C	word   Buttons pressed (in this frame)
+	0x0660	word   Buttons pressed last frame (== the +0x65C from last frame)
+	0x0664  NULL???
+	0x0668	word   Instant buttons
+	0x066C  word   Released buttons
+	0x0670  byte   X joystick hold frame count
+	0x0671  byte   Y joystick hold frame count
+	0x0672  byte   ??
+	0x0673  byte   X button hold frame count
+	0x0674  byte   Y button hold frame count
+	0x0675  byte   ??
+	0x0676  byte   X joystick frame count since last
+	0x0677  byte   Y joystick frame count since last
+	0x0678  byte   ??
+	0x0679  byte   ?? joystick X something i think
+	0x067A  byte   ?? joystick Y something i think
+	0x067B  byte   ??
+	0x067C  byte   A/Z button frame count since last instant
+	0x067D  byte   B button frame count since last instant
+	0x067E  byte   X/Y button frame count since last
+	0x067F  byte   L/R/Z button frame count since last (analog L/R included), used for L-canceling
+	0x0680  byte   L/R digital frame count since last instant
+    					- used for L/R tech dead window (20 frames)
+    0x0681  byte   D-Pad Up frame count since last instant
+    0x0682  byte   D-Pad Down frame count since last instant
+    0x0683  byte   A/Z button frames between last presses
+    					- used for item grab buffer activation
+    0x0684  byte   L/R/Z (digital) frames between last presses
+						- used for tech dead window (40 frames)
+	0x0685  byte   Jumping frame count since last
+	0x0686  byte   Up-B frames since last
+	0x0687  byte   Down-B frames since last
+	0x0688	byte   Side-B frames since last 
+	0x0689  byte   B button frame count since last
+	0x068A  byte   jumping frames between jump input
+	0x068B  byte   ??
+	0x0690  float  ?? summed with a value and added to y coord - 800815b4
+	0x0694  float  ?? summed with a value and added to x coord
+	0x06BC	float  ?? Noticed in Marth Up-B
+
++1776 (decimal)
+
+	0x06F0  phys_t
+	0x06F4	X, Y, Z
+	0x0700	X, Y, Z
+	0x070C	X, Y, Z
+	0x0718	X, Y, Z
+	0x0724	byte	??
+	0x0728	word	frame counter for something
+	0x072C  word     
+	0x0738  noclip if =0, clip else (what does this mean, wparam??)
+	0x0774  float  ECB top, x-coord (for ceiling collisions)
+	0x0778  float  ECB top, y-coord (for ceiling collisions)
+	0x077C  float  ECB bottom, x-coord (floor collisions)
+	0x0780  float  ECB bottom, y-coord (floor collisions)
+	0x0784  float  ECB right, x-coord
+	0x0788  float  ECB right, y-coord
+	0x078C  float  ECB left, x-coord
+	0x0790  float  ECB left, y-coord
+	0x07A4	float  ??
+	0x07AC  float  ??
+	0x0820  word   (00000010) = do not update ECB bottom
+	0x0824  word   Stage collision physics
+					(00008000) = on floor
+					(00000800) = ?? 
+					(00004000) = hitting a ceiling
+					(00000020) = hitting a wall
+					(00800000) = ?? needed to ledge teeter
+					(01000000) = ?? something with grabbing ledge
+					(02000000) = ?? something with grabbing ledge
+					(03000000) = in range of grabbing ledge (I think more like in range and available to grab ledge)
+    0x0828  word   Stage collision physics prev frame   
+    0x0830  float  x coord of position last landed
+    0x0834  float  y coord of position last landed
+    0x083C  word   ground ID, last on
+    0x0842  byte   ground type ID, last on
+                       00 = no drop-through, no grabbable edges
+                       01 = can drop-through, no grabbable edges
+                       02 = no drop-through, can grab edges
+                       03 = can drop-through, can grab edges
+    0x0843  byte   ground property ID (ice, wood, etc.)
+	0x0844  - Start of new properties (?) -
+	0x0844	float  80000000, multiplier for combo count y-coord (does nothing)
+	0x0848	float  normally 1, multipier for combo count x-coord force push and maybe more
+	0x084C	float  ?? related to above two values
+    0x0850  word   right wall ID, last hit
+    0x0856  byte   right wall type ID
+    0x0864  word   left wall ID, last hit
+    0x086A  byte   left wall type ID
+    0x0878  word   ceiling ID, last hit
+    0x088C  word   Timer - ECB Bottom Update Disable
+    0x0890  point  ?? camera struct data. loaded at 86bb4, used for shadow system as well
+    	0x04	word	camera track bool (1 = disabled, 0 = enabled)
+    0x0894  float  frame counter, resets to 1 each action state
+	0x0898	float  ??
+    0x089C  float  speed of current animation
+	0x08A0	float  speed of current animation again?
+	0x08A4	float  ?? = f3 input to ActionStateChange
+	0x08AC	word   ??
+	0x08C0  byte   ??
+	0x08C1	byte   ?? start of a few structs 0x14 in length?? 0xFF is skip
+    0x0914  start of hitbox data info
+                    - hitboxes are 0x138 (dec. 312) apart
+		0x000	word	Hitbox state
+							00 = inactive hitbox
+							02 = active, no interp
+							03 = active, interp
+		0x008	word	damage (int)
+		0x00C	float	damage, staled (float)
+		0x010	float	z-axis offset
+		0x014	float	y-axis offset
+		0x018	float	x-axis offset
+		0x01C	float	hitbox size radius
+		0x020	word	angle
+		0x024	word	knockback, growth
+		0x028	word	knockback, weight dependent set
+		0x02C	word	knockback, base
+		0x030	word	element
+		0x034	word	shield damage
+		0x038	word	?? (00000380 of last word shifted)
+		0x03C	word	SFX on hit
+		0x040	byte	hitbox/hurtbox interaction
+						-Hurtbox interaction-
+						(00000010) = can hit grounded
+						(00000020) = can hit aerial
+						-Hitbox interaction-
+						(00000040) = (bit 00000001)
+						(00000080) = (bit 00000002)
+		0x043	byte	??
+						(00000080) = unknown-3 (bit 00000010)
+						(00000040) = unknown-3 (bit 00000004)
+		0x04C	float	x-coord, hitbox
+		0x074	point	Player damaged #0 w/ hitbox
+		0x07C	point	Player damaged #1 w/ hitbox
+		0x084	point	Player damaged #2 w/ hitbox
+		...
+		0x0FC	point	Player damaged #11 w/ hitbox
+
+
+	0x1198	point   ?? external entity point, checked when making a hitbox?
+	0x119C  byte   ?? team ID of another player?
+	0x119D  byte   ?? port number of another player?
+	0x119E  byte   Number of hurtbubbles to update (15 max), modifiable to remove hurtboxes
+	0x11A0  Start of hurtbubble (hurtbox) info structs (0x4c apart)
+		0x00	word	hurtbox body state (0=normal, 1=invulnerable, 2=intangible)
+		0x04	float	X origin 1 (these are translations from bone origin)
+		0x08	float	Y origin 1
+		0x0C	float	Z origin 1
+		0x10	float	X origin 2 (1 and 2 define a default capsule shape)
+		0x14	float	Y origin 2
+		0x18	float	Z origin 2
+		0x1C	float	XYZ scale (hurtbox radii?)
+		0x20	point	bone attachment
+		0x24	byte	Update flag ( I think this is the only bit checked in this whole word?)
+					(80) = don't update positioning?
+		0x28	float	X pos 1 (these are global positions, relative to stage)
+		0x2C	float	Y pos 1
+		0x30	float	Z pos 1
+		0x34	float	X pos 2
+		0x38	float	Y pos 2
+		0x3C	float	Z pos 2
+		0x40	word	Bone ID
+		0x44	word	Flinch Animation (flinch from 0=low , 1=mid , 2=high) (Toomai spreadsheet- "zone")
+		0x48	word	Grabbable state (0 = ungrabbable, 1 = can be grabbed, Toomai spreadsheet- "grippy")
+		0x4C end of struct element, start of next
+
+
+	0x1828  word   ??
+	0x1830	float  current damage.
+	0x1834	float	
+	0x1838	float  damage applied from attack (staled)
+                - actually, this address is constantly monitored. Anything different than 0 will be automatically added to the character's percent next frame, onscreen percent updated as well
+	0x183C	word  damage applied cast to integer (so float rounded down)
+	0x1840	word
+	0x1844	Start of some damage application type (0x2C long  (0x28?))
+	0x1844	float  damage direction (1 or -1), makes character face left/right, 8008deb8
+	0x1848	word   attack angle, from attack hitting you
+	0x184C	word   Flinch Animation (flinch from 0=low , 1=mid , 2=high) (Toomai spreadsheet- "zone")
+	0x1850	float  knockback, written for calc then returned to zero very soon after
+	0x1854	float  x-posit when hit last
+	0x1858  float  y-posit when hit last
+	0x185C  float  z-posit when hit last (?)
+	0x1860	word   element given from last damage taken
+	0x1864	word   depends on state in 0x1848
+	0x1868	point  damage from player source (entity_t/external data offset)
+	0x186C	float  last applied damage, staled.
+	0x1898	float	Phantom hit damage (?)
+	0x189C  float  last applied hitlag (I think).
+	0x18A0  float  ??
+	0x18A4	float  ??
+	0x18A8  float  knockback from 0x1850, written when hit
+	0x18AC  word   frames since last hit (set to FFFFFFF upon death)
+	0x18B0	float  knockback resistance (subtracted from knockback, always on)
+					= 5 for Nana, 20 for Giga-Bowser
+					- set to 0 on death @ 80067e20
+	0x18B4  float  knockback resistance (for current action state)
+					- set to 0 when put into new action state
+					- Yoshi double jump
+	0x18B8  float  ??
+	0x18BC  float
+
+	0x18C0  word   ??
+ 	0x18C4	word   slot of person who last damaged you (0-5.  6 means self destruct)
+	0x18C8  word   counter, after hitting ground frames to return slot last damaged to 6
+    0x18E0  float  ?? knockback
+    0x18F0  word   damage to be healed, integer
+                       - constantly monitored!
+    0x18F4  word   ?? also see as a halfword
+    0x18FC	byte	?? counter
+    0x18FD	byte   ?? counter
+    0x1908  word   ?? something with recieving damage
+    0x190C  word   ?? something with receiving damage
+    0x1910	word   contiguous frames offscreen, 60 = add 1% damage then reset to 0
+	0x1930	float  ?? x?
+	0x1934	float  ?? y?
+	0x1938  float  ?? z?
+    0x1948  word   ??
+    0x194C  word   ?? counter of some sort,
+	0x1954  float  ?? counter, read on last frame of hitlag
+    0x195C  float  frames of hitlag left
+    0x1960  float  hitlag multiplier (1.5 for electric element)
+	0x1968	byte   Jump number (0, 1, or 2)
+    0x1969  byte   walljump number 
+    0x196c  float  Frames left to link action state (below, jabs)
+    0x1970  word   Action state to link into
+	0x1974  word   Item held (item_t)
+	0x1978  word   Item related, true purpose unsure (maybe if item is in range to be picked up?)
+		- read at 800947a8
+		- don't drop item while being hit if this value equals 0
+	0x197C        Bunny hood worn, if any
+	0x1980  word   ??
+	0x1984  word   ??
+    0x1988  word   player body state (fixed)-subaction event
+                       0 = normal, 1 = invincible, 2 = intangible
+    0x198C  word   player body state (timed)
+    0x1990  word   intangibility timer, int
+    0x1994  word   invincibility timer, int
+    0x1998  float  shield size
+    0x199c  float  lightshield amount
+    0x19A0
+	0x19A4	word   ?? something with breaking shield on hit?
+	0x19B4  float  ?? set to 0 at each action state
+	0x19B8  float  ?? set to 0 at each action state
+	0x19BC  word   ??
+	0x19C0  point  float @ +0x58 = shield collision size
+	0x19C4	byte   ?? 8007aee0
+	0x19E8  byte   ?? 8007aef8
+	0x1A0C  byte   ?? 8007af10
+	0x1A34	float	unk, assigned on reflect bubble activation (includes power shield.)
+	0x1A38	float	unk, same as above--different value
+	0x1A44	word	Rapid Jab button count (counts each push and release of A button during rapid jab startup window)
+	0x1A4C	float  breakout countdowns (sleep,grab,grounded)
+	0x1A50	byte   ??
+	0x1A51	byte   ??
+	0x1A54	word	Jab window counter
+	0x1A58	word   Player held/being held by
+	0x1A5C	word   Also player held/being held by
+	0x1A60  word   ?? Maybe Item_t in range?
+	0x1A64  word   ??
+	0x1A68  short  ?? something with grabs
+	0x1A6A  short  ?? something with grabs
+
+	0x1A88  - Start of CPU stuff (?) -
+	0x1A88  word   CPU buttons pressed this frame
+	0x1A8C  byte   CPU joystick x axis input in some manner
+	0x1A8D  byte   CPU joystick y axis input in some manner
+	0x1A8E  byte   CPU c-stick x axis input in some manner
+	0x1A8F  byte   CPU c-stick y axis input in some manner
+	0x1A90  byte   CPU l/r analog input (probably one or the other)
+	0x1A91  byte   CPU l/r analog input (probably one or the other)
+	0x1A94  word   CPU AI type  
+	0x1A98  word   CPU lvl
+	0x1A9C  word   ??
+	0x1AC4  float  ??
+	0x1B04	word   ?? counter of some sort. something with nana? 800b393c
+	0x1B81  byte   CPU - Something with Nana
+	0x1B82	byte   CPU - Nana flags
+					(00000001) = synced
+	0x2000  Frames of lipstick flower remaining
+	0x2004	Frames of starman remaining
+	0x2008	Frames of mushroom remaining (both big & small)
+	0x200C  Frames of ??
+	0x2010	word   ?? counter
+	0x2014	Frames of bunny hood remaining
+	0x2018  word   ??
+	0x201C  word   ??
+	0x2028	Frames of metal box remaining
+	0x2030	Frames of cloaking device remaining
+    0x2034  word   ??
+    0x2038  word   ?? used with 0x2034 in some way
+    0x2064  word   ledge regrab disable counter
+	0x2068  word   attack ID of current move maybe (need to check
+    0x206C  half   total # of action states
+    				- rest of word is garbage?
+    0x2070	word   ??
+    0x2071  byte   ??
+	0x2073	byte   ??
+	0x2084  byte   (00000080) = performing meteor cancel
+	0x2088	half   action state counter?
+					- rest of word is garbage I think
+    0x208C  word   last attack landed
+    0x2090  short  combo count
+	0x2092	short  combo count - frames left to push character backwards on combos >= 5
+	0x2094	point  Char data offset being comboed
+	0x2098	short  combo count buffer window after hitstun (of some sort)
+   	0x209A  short  ??
+    0x209C  short  Item catch  set to 8 if pressing LorR+A in special fall. Subtracted by 1 every frame.
+    0x20A0  word   ??
+    0x20A4	byte	(00000010) = ??
+    0x20A8  point  To a struct for shadow casting?
+	0x2100	byte   ??
+    0x2108  word   ?? some counter, relating to action states?
+    0x210C  byte   wallride, frames since last
+    0x2110  float  Wall on left(1)/right(-1) of character
+    0x2114  word   smash attack state
+                       2 = charging, 3 = attacking, 1 = beginning, 0 = all other
+    0x2118  float  smash attack charge frame counter
+    0x211C  float  smash attack charge frame limit
+    0x2120  float  smash attack charge strength mult
+    0x2124  float  smash attack animation speed mult
+	0x2128	word   smash attack body aura ID
+    0x2135  byte   ?? stored at rebirth from playerblock+0x4e 
+    0x2138  float  ?? stored during hitbox data function
+    0x213C  word   ??
+    0x2160  word   ??
+    0x2164  word   ?? set to 0 upon death
+	0x216C  float  ?? set to upon grabbing
+	0x219C  point  IASA Function
+	0x21A0  point  Animation Interrupt
+	0x21A4  point  action physics (per frame)
+	0x21A8  point  collision interrupt function
+	0x21BC  point  action state function of some sort?
+	0x21C0	point  ??
+	0x21CC	word   pointer
+	0x21D0  point  ??
+	0x21D8  point  ?? set to 8008E714 when hit, I think --> for applying DI 
+	0x21DC  point  ?? set to 800974C4 when lifting an item
+	0x21E0  point  ??
+	0x21EC	point  ??
+	0x21F0  point  ??
+	0x21FC  byte   Collision bubble toggle
+
+	-next 4 words deal with subaction flags
+	0x2200  word   Subaction Event Flags
+			0 = autocancel, 1 = no autocancel, enter into Run, more
+	0x2204  word   Subaction Event Flags
+			(set to 0 for TurnRun action state
+	0x2208  word   Subaction Event Flags
+	0x220C  word   Subaction Event Flags
+	0x2210  byte   ??
+		(00000010) = ??, check in Marth up-B interrupt
+	0x2218  byte   Flags
+		(02) = unk flag, related to collision bubble display and structure at offset 0x1A08
+		(10) = toggles mint green reflect collision bubble
+		(20) = ?? checked before grabbing ledge
+					= able to be canceled into rapid jab
+		(40) = in attack (or multiattack?)
+		(80) = IASA enabled
+	0x2219  byte   Flags
+		(01) = ??
+		(04) ?? checked at beginning of playerthink_physics - skips a portion of the code
+		(08) = hammer, run special func at action state change
+		(10) = deactivate all hitboxes next action state change
+		(20) = ???
+    	(40) = immune to attacks (like intangible)
+	0x221A  byte   Flags
+		(00000001) = shielding
+		(00000002) = ?? 80069520
+		(00000004) = ?? 80069508
+		(00000008) = fastfalling
+		(00000010) = ??
+		(00000020) = in hitlag
+	0x221B  byte   Flags
+		(04) = grabbing/throwing an opponent
+		(80) = toggles cyan shield collision bubble
+	0x221C  byte   Flags
+        (00000002) = in tumble hitstun?
+        (00000080) = ??
+	0x221D  byte   Flags
+		(00000001) = ?? checked when grabbing edge?
+		(00000002) = ?? can't be grabbed?, set when getting a starman item
+		(00000008) = ignore controller inputs, but character does not freeze on-screen
+		(00000010) = something with controller inputs
+		(00000020) = CharObjectFlagModify next action state change
+	0x221E  byte   Flags
+		(00000001) = ??
+		(00000004)  1=invis, 0=visible [from event scripts]
+		(00000080)  1=invis, 0=visible [from action state functions]
+	0x221F  byte   Flags
+		(00000002) = ?? something to do with damage
+		(00000008) = secondary character (Nana) 
+		(00000010) = player is frozen, and becomes invisible
+		(00000020) = No P1, etc. tag above player
+		(00000080) = (80086b64)
+    0x2220  byte   Flags
+		(00000002) Poison mushroom in effect
+	(00000004) Super Mushroom in effect
+		(00000008) ?? checked when getting hit
+		(00000010) ?? checked when getting hit
+	0x2221  byte   Flags
+		(00000001) ?? checked in spcialfall interrupt
+		(00000004) ?? checked in specialfall interrupt?
+		(00000080) = ??
+	0x2222  byte   Flags
+		(00000001)  ?? 8006bce4
+		(00000002)  ?? 8006bcdc
+   		(00000004) make this character's secondary character vanish upon this character's death (like Nana)
+     	(00000008) = ??
+		(00000010) = ??
+   		(00000040) = ??
+		(00000080) = ??
+	0x2223  byte   Flags
+		(00000001) = default metal on
+		(00000010) = ?? No color overlays allowed
+	0x2224  byte   Flags
+		(00000001) = walljumping enabled
+		(00000020) = stamina lie dead, can't input anything
+		(00000040) = cannot catch item
+	0x2225	byte	Flags
+		(00000001) = stamina mode knockback
+		(00000008) = ?? checked in hitbox melee logic
+		(00000010) = ??
+		(00000080) = ??
+        0x2226  byte,
+ 		(00000004) = completely black overlay
+		(00000020) = ?? checked when getting hit, won't drop item when hit with this
+		(00000040) = ?? set for giga bowser
+	0x2226	byte, flags
+		(00000008) = ??
+	0x2227  byte,
+		(00000004) = doing a special attack (havent checked others)
+		(00000010) = colored metal
+		(00000080) = in air? (set when entering JumpF/B)
+	0x2228  byte,  Flags (for helping Physics?)
+		(00000001) = ?? set at 8006b1e0 (controller to data offset function)
+		(00000002) = can't use z-air grapple (?)
+		(00000004) = ?? death check is skipped if contains?
+		(00000020) = ?? must not contain to enter ledge teeter, grabbing ledge, death
+		(00000080) = ?? checked in color overlay function
+	0x2229  byte   Flags
+		(00000001) = ?? checked when getting hit
+		(00000004) = 
+		(00000008) = ignore coin collect check
+	 0x222A  byte   Flags
+ 		(00000040) = ?? death check is skipped if contains
+		(00000080) = ungrabbable
+	0x222C	word	Char Flags
+			DK - giant punch charge
+	0x2234	byte	Kirby flags?
+		(00000080) = ??
+	0x2238	word	Kirby - internal ID of char copied ability
+	0x223C  word	??
+	0x2258	word	G&W flags?
+	0x225C	word	G&W flags?
+	0x2260	word	G&W flags?
+	0x228C	word	??
+	0x2330  Frames of hammer remaining
+	0x2340  flags,	float  Various frame counters
+                       - Hitstun frames left
+                       - Revival platform dropoff timer
+                       - Sheik up-b vanish frames left 
+	0x2342  byte   ??        
+	0x2344  flags	
+			Jumping:
+			1 = tap jump
+			2 = c-stick (from shield)
+			3 = x/y button
+
+	0x2348  word   ?? something receiving damage (turning to 1?)
+	0x234C  word   ?? current facing direction is stored here in TurnRun, 
+	0x2354  float  ?? when inputting a jump in DamageFlyTop, frames of hitstun left are written here
+	0x2358	float	??
+	0x2359  byte   ?? stored to 0 when getting hit?
+	0x235A	byte   hit by meteor attack = 1
+	0x235B	byte   frames left to meteor cancel
+	0x2360  float  ??
+	0x2364  float  ??
+	0x2368  float  ??
+
+};
+
+*0x620 & 0x624 joystick values are copied from code area 0x6ae78
+
+Subaction data
+--------------
+(size: 0x18)
+{
+	0x00 = string offset (pointer)
+        0x04 = animation offset
+        0x08 = unknown offset
+        0x0c = event script offset (pointer) 
+        0x10 = Character ID and position flag
+        0x14 = unknown flags or offset (this is the 0x00000000 line in character dat files)
+};
+
+
+To get to any subaction's data structure, take subaction ID number and multiply by 0x18.
+	- add to beginning of subaction data.
+
+
+Character Object Flags
+-----------------------
+Link
+0x05f7  byte   00 = sword in hand, 01 = sword in sheath, 02 = no sword
+0x05f9  byte   00 = shield in hand, 01 = shield on back
+
+
+Roy:
+0x05F7
+	00 = normal sword
+	01 = sword in sheath (?, no sheath vis)
+	else = invisible sword
+0x05F9
+	00 = sheath shown
+	FF = sheath not shown
+
+Item specific entity data
+-------------------------
+
+
+sub_item_t (size: 0x1000)
+{
+        0x00:   address=pointer@(Item held + 0x2c)
+	0x04:	pointer back to entity_t
+	0x10:	Item type
+	0x1C:	#items spawned so far (maybe of just this type?)
+	0x20:	byte, team ID
+                FF = neutral (ex. stage hazard)
+	0x24:	state (indexes into the (this+0xBC) pointer)
+        0x38:   Model scale
+	0x40:	X velocity
+	0x44:	Y velocity
+	0x48:	Z velocity (assumed)
+	0x4C:	X coord(?)
+	0x50:	Y coord
+	0x54:	Z coord(?)
+	0xB8:	Pointer to static data about item. (many function pointers, 0x3C in length)
+	0xBC:	More static data.  (This value is also first in *(this+0xb8))
+	0xC4:	links to something that links to something that holds length of metal box.
+	0xCC:   links to pointer that links to byte that controls some item characteristics?
+		0x00
+			(000000080) = ??
+
+
+
+			0x00: Item Action State Characteristics
+				0x03 = screwattack, pokeball,shell
+				0x12 = fan, star rod
+				0x1a = fire flower, superscope
+				0x28 = warpstar
+				0x29 = food
+				0x2C = auto apply (bunnyhood)
+				0x2a = cloaking, hammer
+				0x89 = partyball, box
+			0x01: Item facing direction
+				0x14 = pokeball
+				0x18 = fire flower, shell
+				0x58 = food
+				0x6c = Partyball, box
+				0x78 = fan, star rod, superscope
+				0x7c = cloaking, hammer
+				0xbc = warpstar
+	0x378:	phys_t (4 sets of XYZ, just like in sub_player_t)
+	0x4C4:  odd blocks of (-1int, 0, 0, 1float, 0) repeated 5 times
+	0x518:	player_t* owner.  (Stays set after item is thrown; score probably uses.)
+	0x548:	start of color_t
+	0x548:	Frames of current color left
+	0x550:	Pointer to color table
+	0x570:	Unknown, possibly index into color table
+	0x574:	rrggbbaa, set by the game based on next 4 floats
+	0x578:	float red (0-255)
+	0x57C:	float green (0-255)
+	0x580:	float blue (0-255)
+	0x584:	float alpha (0-255) (255 = item is 100% that color, 0 = no color change)
+	0x588:	red 'velocity'?
+	0x58C:	green 'velocity'?
+	0x590:	blue 'velocity'?
+	0x594:	alpha 'velocity'?
+	0x5C4:	color enable (set to 0x80000000 to apply color)
+	0x640:	sub_player_t of person who was hit? (not set to NULL when spawned)
+    0xC44:  float, ??
+	0xCF4:	player_t of person who was hit? (valid only in the OnHitPlayer())
+	0xD14:	func pointer (these come from the 0xBC pointer)
+	0xD18:	func pointer
+	0xD1C:	func pointer
+	0xD44:	float timetillexpire
+	0xDC8:	byte,
+    0xDCD:  byte, 
+	0xDD4:	pointer	bone structure
+	0xDDC:	!= 0 -> harmless bomb?.  no.
+	0xDEC:  byte	(00000040) = ?? checked for coin item
+	0xE00:	player_t: owner
+};
+
+Item states:
+0:	on ground
+2:	held
+3:	airborne
+
+
+item_func_data_t
+{
+	void *statedata;
+	func* 8027d76c	OnCreate(item_t *)
+	func* NULL	OnDestroy (item_t *)
+	func* 8027e0b4  OnPickup (item_t *) (player_t at 0x518 is valid)
+10	func* 8027e648	?
+	func* 80280380	OnThrow (item_t *)
+	func* 80280df0	OnHitPlayer (item_t *) (player_t* target is at subitem+0xCF4)
+			if this function returns 1, the item is 'instant on touch'
+	func* 80280e30	OnTakeDamage (item_t *)
+20	func* 80280e9c	?
+	func* 802810a4	?
+	func* 80281070	?
+	func* null	?
+30	func* 80281104	?
+	func* 802810c4	?
+	func* 80281144	?
+};
+
+A note about state data:
+State data looks like this:
+itemrunstate_t
+{
+	int someflags;
+	void *func1;
+	void *func2;
+	void *func3;
+};
+As far as I know every function runs every frame.  func1 is supposed to
+return a value, func2 is not, func3 unknown.  They can be NULL.
+The number of state table entries an item uses can't be determined by any static
+data that I can see, you just have to watch the item's state value and see what
+it gets to.
+
+
+
+The heap.
+----------------------------------------------
+heap_t //8 words total.
+{
+	heap_t *next;
+	heap_t *prev;
+	int size; //includes sizeof (heap_t)
+	int unknown[5];
+}
+
+I think all allocations on the heap are rounded up to 0x20 bytes (8 words), but
+only the fields that are used get written.  The 5 unknown words in here often
+contain random seming data, and I don't think it's ever used for anything.  Malloc
+returns a pointer to the word AFTER this struct (i.e. the start of the actual
+block of memory this struct describes).  The size includes the full size (including
+padding) of this struct, and the block that follows it.  So you shouldn't ever see
+a size of less than 0x40.
+
+
+Game entities.
+-----------------------------------------------
+
+entity_t //64 bytes
+{
+	short class;
+	byte unknown1;
+	byte unknown2;
+	short zero;
+	byte three;
+	byte class; //?
+	entity_t *next;
+	entity_t *prev;
+	entity_t *next; //these pairs are always the same.
+	entity_t *prev; //they seem to only link objects of the same type
+	void *unknown; (linked list of something)
+	void (*framefunc)(entity_t *self, int code); //called each frame
+			may actually be the "render" function
+	int null1;
+	int null2;
+	void *unknownnon_heap;
+	void *entity_data;
+	void (*data_destructor)(void *ed);	
+};
+
+Entity classes:
+0x1: stage?
+0x3: Camera? I think.
+0x4: player
+0x6: item/ (music?...idk)
+0x8: ? x2
+0xC: ?
+0xD: random effects
+0x10: (we suspect this is 'camera' - wparam)
+0xE: ?
+
+This is the generic "entity" structure.  Everything in the game (even the stage,
+I think) is an entity.  This is the structure that "contains" a subplayer_t struct.
+(The subplayer_t is the entity_data, at +44 bytes).  They only link to within the
+same class.  player_t and item_t would both be pointers to this type of struct
+(though obviously an item_t has a subitem_t as its entity data instead of a
+subplayer_t)
+
+
+Character entity struct (external data offset)
+-------------------
+0x08	point	next player external data offset
+0x0C	point	previous player external data offset
+0x10	point	next player external data offset (repeat)
+0x14	point	previous player external data offset (repeat)
+0x18	point	linked list -0x20 before next player's ext offset
+0x1C	point	Unknown function
+0x20	NULL
+0x24	NULL
+0x28	point	Unknown struct
+					0x14 = flags
+					0x38 = TopN - x-coord, @ last action state change
+					0x3C = TopN - y-coord, @ last action state change
+					0x40 = TopN - z-coord, @ last action state change
+0x2C	point	internal data offset
+0x30	point	Destructor function?
+0x40	point	Linked list
+0x44	point	Linked list -0x20 before struct
+
+
+Struct for SpawnEntity
+---------------------------------------------
+
+spawn_item_t (not bigger than 0x58 bytes)
+{
+	0x00: pointer to player (if applicable, external offset)
+	0x04: pointer (maybe to parent bone, external offset. ex- If spawning Blastoise water jet, this will be a pointer to Blastoise himself)
+		- otherwise, it is same pointer as 0x00
+	0x08: Item ID
+	0x0C: Parent X-coord
+		wParam - i THINK it's a sub type (what kind of food, etc.)
+	0x10: Parent y-coord
+		wParam - odd pointer (80cbf0c0) (depends on how melee started)
+		(set to 0 by SpawnEntity; is never read).  May be
+		leftover garbage from the stack)
+        #this set is for spawn points below 0 y-axis (?)
+	0x14: X coord (float)
+	0x18: Y coord (float)
+	0x1C: z coord (float)
+
+        #this set is for spawn points above 0 y-axis (?)
+	0x20: X coord (float)
+	0x24: Y again (float)
+	0x28: z again (float)
+
+	0x2C: X velocity (float)
+	0x30: Y velocity (float)
+	0x34: Z velocity (float)
+	0x38: Facing direction (1=right or -1, float)
+	0x44: 0x80000000
+		- I think can be 0
+	0x48: set to 1 by SpawnItem
+		- I think can be 0
+};
+
+
+I call SpawnEntity with only the item type index, the angular velocity, and the
+flags at 0x44 set; the rest are all zero.  AV and the flag might also be optional.
+
+
+Block for the spawn player function
+-----------------------------------
+spawn_player_block_t (possible length 0xC)
+{
+	int internal_index; //internal player type code
+	byte slot; //which player slot to associate with
+	byte something2; //usually 0xFF
+	byte flags;
+};
+flags: 
+0x2A = normal person
+0x80 = nana
+0x00 = exact copy of player
+0x29 = player spawned for multi-match fight
+
+
+
+
+Static player block
+-------------------
+
+They start at 80453080
+static_player_block_t //0xE90 bytes long
+
+P1 - 80453080
+P2 - 80453f10
+P3 - 80454DA0
+P4 - 80455C30
+P5 - 80456AC0
+P6 - 80457950
+
+{
+	0x00: long	unknown (not sure when it doesn't = 2)
+	0x04: long	character ID (external index)
+	0x08: long	slot type (human, cpu, demo, none)
+	0x0C: byte	01 = secondary char in use (Zelda/Sheik)
+	0x0D: byte	01 = main char in use (Zelda/Sheik)
+	0x10: float	X coordinate, main player
+	0x14: float	Y coordinate, main player
+	0x18: float	Z coordinate, main player
+	0x1c: float	X coordinate, secondary player
+	0x20: float	Y coordinate, secondary player
+	0x24: float	Z coordinate, secondary player
+	0x28: float	X coordinate, last respawn (?)
+	0x2C: float	Y coordinate, last respawn (?)
+	0x30: float	Z coordinate, last respawn (?)
+    0x40: float	facing direction (1=right, -1=left)
+	0x44: byte 	Costume ID
+	0x45: byte	controller index
+	0x46: byte	subcolor ID
+	0x47: byte	Team ID (00 = red, 01 = blue, 02 = green)
+    0x48: byte	controller index (or port number?)
+	0x49: byte	CPU level
+    0x4A: byte	CPU type, applied after death
+    0x4B: byte	?? unknown, loaded when put to sleep by jiggs
+    0x4C: byte	?? unknown
+    0x4D: byte	?? unknown
+	0x4E: byte	?? unknown
+    0x50: float	?? unknown
+	0x54: float	attack ratio
+	0x58: float	damage (defense) ratio
+    0x5C: float	model scale (match was started with. modifying does nothing.)
+	0x60: short	currently /displayed/ health. (ALWAYS counts up)
+	0x62: short	health start value, or secondary char health
+	0x64: short	stamina hp - check to confirm
+	0x68: int	falls (80034de8)
+    0x70: int	P1 KOs
+    0x74: int	P2 KOS
+    0x78: int	P3 KOs
+    0x7c: int	P4 KOs
+	0x80: int	P5 KOs
+	0x84: int	P6 KOs
+	0x88: int	Time of death, match frames ("KO'd on Results Screen"), -1 = never totally KO'd
+	0x8C: short	self deaths
+    0x8E: byte	stocks left
+	0x90: int	current coins
+	0x94: int	total coins collected
+	0xA0: int	joystick "smashes" (8003662c - load, add 1, store)
+	0xA8: int	name tag slot #
+	0xAC: byte	flags
+		(10) = Use "Entry" action state and not "Fall" (Giga-Bowser needs "Fall" or else freeze)
+		(20) = spawn secondary char upon main char death (Nana) (set @ 80031b50)
+		(80) = rumble on/off
+		-comparison for 0x80 is @ 800354c0
+		-comparison for 0x40 is @ 800356b8
+	0xAD: byte	??unknown (8003468c). Set to 0x20,0x80 and see?
+        0x01 = ??
+        0x08 = disable offscreen bubble completely
+		0x10 = enable offscreen bubble damage
+		0x20 = use stamina hp
+        0x40 = ??
+		
+    0xAE: byte	?? unknown
+	0xB0: void*	pointer to player_t
+	0xB4: void*	pointer to player_t for nana/zelda/sheik, if applicable
+    0xB8: pointer function player_init (? --> see Yoshi Spawn Team, 0x80031c98)
+    0xBC:  int	stale move, current entry index
+    0xC0:  Stale move list start
+    0xE4:  Stale move list end
+		0x00 short, move ID
+        0x02 short, # of action states since match start
+
+	0x1B8: int	attempted grabs
+	0x1C4: int	throws
+	0x27C: int	smash attacks
+	0x280: int	air attacks
+	0x284: int	items thrown
+	0x290: int	meteor attacks
+        0x414: ---start of bonus stats?
+	0x690: int	cliffhangers
+        0xD18: int	Shy guy KOs
+	0xD1C: float	damage taken
+	0xD20: float	peak damage
+	0xD24: int	damage recovered
+	0xD28: float	damage given
+	0xD4C: word	counter of some sort (hammer)
+	0xD60: int	total number of attacks landed
+	0xDA0: int	# of times hit by attacks with 150+ knockback
+	0xDC0: int	longest drought
+        0xDDC: int	air time
+        0xDE0: int	ground time
+}
+
+
+
+Map ground struct
+-----------------
+
+Pointers to these start at 803DFEDC
+
+map_thing_block_t (0x34 bytes)
+{
+	0x00: long: "grkind"
+	0x04: void*: unknown data pointer
+	0x08: char*: map filename
+	0x0C: void*: unknown code pointer (called on start and on EVERY stage end)
+	0x10: void*: unknown code pointer
+	0x14: void*: unknown code pointer (called on this stage start)
+	0x18: ""
+	0x1C: ""
+	0x20: ""
+	0x24: ""
+	0x28: int: unknown non-zero small int
+	0x2C: int: unknown data pointer
+	0x30: int: small integer
+}
+
+
+
+Item "action" struct
+--------------------
+item_func_data_t
+{
+	0x00	void *framestate;
+	0x04	OnCreate(item_t *)
+	0x08	OnDestroy (item_t *)
+	0x0C	OnPickup (item_t *) (player_t at 0x518 is valid)
+	0x10	func* 	?
+	0x14	OnThrow (item_t *)
+	0x18	OnHitPlayer (item_t *) (player_t* target is at subitem+0xCF4)
+			if this function returns 1, the item is 'instant on touch'
+	0x1C	OnTakeDamage (item_t *)
+	0x20	OnFallOffEdge (item_t *, item->subitem->0xB8)
+	0x24	func*	?
+	0x28	func*	?
+	0x2C	func*	?
+	0x30	func*	?
+	0x34	func*	?
+	0x38	func*	?
+};
+
+The frame state thing is an index into an array of structs that look like this:
+otherdata_t
+{
+	int usuallynegative1
+	func*
+	func*
+	func*
+};
+There's nothing obvious that tells you how many are used by the item.  They may even duplicate.  Each of the three functions is called every frame when the item is in that state.
+
+
+Current Match Info
+-------------------
+Start: 8046b6a0
+
+0x0000   byte   Set to 01 to initiate "match end" load sequence
+0x0001   byte   Player who last paused game
+0x0002	 byte   Unpause disable counter
+0x0004   byte   Pause disable counter. (e.g. after unpausing, you can't pause again for 10 frames). Cannot pause if this is greater than 0.
+0x0005   byte   Pause permissive/match frame count bool, must be 01 to pause & for match timer/frame count to start 
+0x0006   byte   ??
+0x0007   byte   ?? compare to 1 @ 8016b184
+0x0008	 byte	?? 8016c864, might be player ID that won the match (7 = no contest, 9 = training mode exit)
+0x000B   byte   ??
+0x000D   byte   Player who last died. 0x06 at match start
+0x000E   byte   00=ingame, 01=match finished (I think.)
+0x0010   word   ??
+0x0014   word   ??
+0x0018   byte   ??
+0x0024   word   Match Frame Count
+0x0028   word   Second left
+0x002C   short  Subseconds (milliseconds?)
+0x0034   float  ?? Set in StartMelee. Changes based on how many characters in match.
+
+(players are 0xE apart in following...)
+0x0038	 byte   P1 external char ID
+0x003B	 byte   P1 spawn location ID
+0x0040	 byte   ??
+0x0046   byte   P2 external char ID
+0x0049   byte   P2 spawn location ID
+0x004E	 byte	??
+0x0054	 byte   P3 external char ID
+0x0057	 byte   P3 spawn location ID
+0x0062   byte   P4 external char ID
+0x0065   byte   P4 spawn location ID
+0x0070   byte   P5 external char ID
+0x0073   byte   P5 spawn location ID
+0x007E   byte   P6 external char ID
+0x0081   byte   P6 spawn location ID
+
+-8046b8ec- (0x24C from 8046b6A0)
+
+
+-8046db68-
+0x24C8   byte   Match type?
+                (00000000): timer count down
+                (00000001): timer counts up
+                (00000002): update timer toggle
+                (00000010): ?? always on in vs mode,
+                (00000020): stock mode
+                (00000050): coin mode
+                (00000070): bonus mode
+0x24C9   byte   Friendly Fire Flag (01=on, as usual)
+		(00000004): ???
+		(00000040): classic mode has this value?
+		(00000080): Event Match
+0x24CA   byte   Flags
+                (00000008): Pause ON/OFF, bit high means OFF
+                 ?? load and compare (00000040) - 8016b124
+                 (00000010) Single Button Mode enabled
+                 (00000040) ??
+0x24CB   byte   Pause screen textures to show
+                (00000000): No textures
+                (00000001): Time still shown and keeps counting
+                (00000002): No textures if ever included
+                (00000004): L+R+A+START to Reset
+                (00000008): ?? seems to not do anything
+                (00000010): Z to retry
+                (00000020): ?? seems to not do anything
+                (00000040): joystick in bottom left
+                (00000080): Score display on/off
+0x24CC   byte   ?? load and compare (00000020) - 8016b014
+                ?? compare to (00000040) to stock steal
+0x24CD   byte   Match flags
+                - (00000020) = pokemon hitboxes and warp stars are the only things that hurt
+                - (00000040) for target test
+                - (00000080) for most event matches, stadium matches
+0x24CE   byte   Supersuddendeath/bomb rain toggle byte
+0x24D0   byte   Teams Mode on/off
+0x24D1   byte   ?? load compare 8016b1a8
+0x24D3   byte   Item Frequency
+0x24D4   byte   Self-Destruct Value (-1,0, or 1)
+0x24D6   short  Stage ID
+0x24D8   word   Timer, initial value, seconds
+0x24E8   word   Item switch bitfield word 1
+0x24EC   word   Item switch bitfield word 2 n "glGetCurrentTextureState"
+0x24F0   word   ?? load function 8016aeb8
+0x24F4   float  screen rumble multiplier, not modifiable
+0x24F8   float  damage ratio, modifiable midgame
+0x24FC   float  match speed, not modifiable
+0x2500   point   Camera change function pointer. (Fixed camera = 80165290)
+0x2508   word   Pointer for some blrl function
+0x2518	 point	Pointer for some blrl function
+0x25E0   byte   Results Screen - Player 1 "Ready" byte
+		28 = not ready (reading stats )
+		80 = ready
+		88 = cpu slot, advance automatic when humans are ready
+0x26B8   byte   Results Screen - Player 2 "Ready" byte
+0x2790   byte   Results Screen - Player 3 "Ready" byte
+0x2868   byte   Results Screen - Player 4 "Ready" byte
+
+Start Melee type
+----------------
+8046db68 = current match info + 24C8
+
+startmelee_t
+{
+        0x06:   byte, bombrain on/off
+	0x0E:	short, stage ID
+	0x38:	Camera change function pointer.  (Fixed camera = 80165290)
+}
+
+
+
+
+
+
+
+Vs. Match Info (some gets copied to Current Match Info)
+-------------------------------------------------------
+Start: 80480530
+
+
+
+
+
+
+
+Camera Type
+-----------
+camera_t (located at 80452C68)
+{
+	0x00:	entity_t *, pointer to camera entity
+	0x04:	int, camera type (index into 803BCB18)
+	0x08:   background color
+	0x0C:	float, related to view distance or something
+	0x10:	float, distance to background?
+	0x14:	float, pan angle (positive=pan right, negative = pan left, units unknown)
+	0x18:	float, tilt angle (positive=up, negative=down)
+	0x1C:	float, also tilt angle (seems to only tilt down, though)
+	0x2C:	float, some kind of pan around point angle
+	0x30:	float, tilt around point angle
+	0x34:	float, depth? (more positive=camera farther away)
+	0x44:	float, FOV (background only?)
+	0x84:	float xtranslate (positive=move right, negative=move left)
+	0x88:	float ytranslate (positive=move up, negative=move down)
+        0xA4:   float  ??
+        0xA8:   float  ??
+        0xAC:   float  ??
+        0x2C4:  byte, player the pause screen is focused on
+        0x2C5:  byte, player who paused the game
+        0x2C8:  float  ?? pause screen something
+        0x2CC:  float  ?? pause screen something
+        0x2B0:  float, ??
+        0x2B4:  float, ?? value from 0x2b0 is stored into this every 1000 frames
+        0x2B8:  short, ?? A counter. Compare to 1000 at 8002b610
+	0x2BC:  float, unknown. Read at 80031150.
+	0x2EC:  float  Pause screen camera limit
+	0x398	byte	flags
+		(03) = ?? 2-bit ID (parsed by call to @80031060)
+		(04) = Toggle off background color changing effects -- Can be seen in some of the FD background effects
+		(08) = Toggle Off Ambient Light for Entities?  -- Makes characters turn pitch black in the shadows of direct
+		(10) = Toggle off background particle effects (such as stars that remain in BG during blacked out FD and BF)
+		(20) = Black Background (keeps stage geometry display)
+
+	0x399	byte	flags
+		(01) = Toggle Ground Textures -- Turns ground black
+		(02) = ??
+		(04) = Black Background (excludes stage geometry display)
+		(08) = Toggle player Camera Squares -- Blue Squares that adjust camera for each player's facing direction
+		(10) = Toggle ECB, stage geometry and Red/Blue Squares -- ECB quads, floor geometry, and squares all come from this flag
+		(20) = ??
+		(C0) = ?? 2-bit ID (related to the 2-bit ID in 0x398)
+	0x39A	byte	flags
+		(20) = ?? related to GFX    - playing with this bit throws some fun GFX panic messages in Dolphin
+	0x39C:  word   camera type, previous (develop mode)?
+};
+
+Camera types:
+0: normal
+1: pause view (joystick moves view, training mode Zoom)
+2: one player view (char off center)
+3: same as 2 except centered
+4: fixed
+5: crazy
+6: (used in demo mode to focus on a player)
+8: the mode develop uses when you lock the camera
+
+Camera Data Locs:
+
+0x8 Develop Camera = 80453040 to 8045305c (not including 8045305c)
+0x7 Develop 1P = 80453018 to 80453040 (not including 80453040)
+
+Stage Info
+---------------------------------------
+
+Start - 8049e6c8
+
+0x0000   float  camera left limit
+0x0004   float  camera right limit
+0x0008   float  camera top limit
+0x000C   float  camera bottom limit
+0x0010   float  camera x-axis offset (limits start from here)
+0x0014   float  camera y-axis offset 
+0x001C   float  camera vertical axis tilt
+
+Note: 0x20-0x30 copied directly from stage grGroundParam data
+
+0x0020   float  camera dynamic rotation about y-axis
+0x0028   float  camera fixedness around characters (higher shows more stage along with all chars, pseudo-zoom value)
+0x002C   float  camera fixedness zoom when not moving? (higher = further out)
+0x0030   float  camera speed smoothness
+                - 0 freezes camera in place
+0x0034   float  camera character zoom (?) (set to 0 and camera doesn't move)
+0x0044   float  camera pause initial z-axis position
+0x004C   float  ?? camera pause initial _ position
+0x0050   float  ?? camera pause initial _ position
+0x0054   float  ?? camera pause initial _ position
+0x0058   float  ?? camera pause initial _ position
+0x005C   float  fixed camera, x-axis offset
+0x0060   float  fixed camera, y-axis offset
+0x0064   float  fixed camera, depth max
+0x0068   float  fixed camera, zoom or something (8049e730)
+0x006c   float  fixed camera, tilt about x-axis
+0x0070   float  fixed camera, focus point x-axis
+0x0074   float  Blastzone left
+0x0078   float  Blastzone right
+0x007C   float  Blastzone top
+0x0080   float  Blastzone bottom
+0x0084   word   ??
+                or'ed with (00000020) once 0 targets remain in BtT. Maybe flag to end game of some sort? Haven't tested.
+0x0088	 word	Internal Stage ID (0x4 from Gr__.dat ASCII in DOL)
+0x008C	 byte   ??
+		(00000004) - ?? set in stage initialization
+		(00000008) - stage has multiple respawn points per player
+0x0098   word   Music ID currently playing (49e760), HPS id
+0x009C   word   Bombrain - frame of last bomb drop, other uses?
+0x0180	 point	??
+0x0184	 point	?? 801c2ba4
+0x0280	 point  P1 spawn point bone
+0x0284	 point  P2 spawn point bone
+0x0288	 point  P3 spawn point bone
+0x028C	 point  P4 spawn point bone
+0x0290	 point  P1 Respawn point bone
+0x0294	 point  P2 Respawn point bone
+0x0298	 point  P3 Respawn point bone
+0x029C	 point  P4 Respawn point bone
+0x04D4   point  camera limit, left-top, stage file info
+0x04D8   point  camera limit, right-bottom, stage file info
+0x04DC   point  blastzone, left-top, stage file info
+0x04E0   point  blastzone, right-bottom, stage file info
+0x06A8   point  itemdata stage file info
+0x06AC   point  coll_data stage file info
+0x06B0   point  grGroundParam file info
+                 --> 0x004C = Fixed Camera Bool (word, 1=Enable)
+0x06B4	 point  ALDYakuAll stage file info
+0x06B8	 point	map_ptcl stage file info
+0x06BC	 point  map_texg stage file info
+0x06C0   point  yakumono_param stage file info
+0x06C4   point  map_plit stage file info
+0x06CC   point  quake_model_set stage file info
+0x06E0   float  Home-run Contest Distance?? load function 801c57f0
+0x06E4   word   Vs mode / single player flag of some sort
+0x06D4   short  Number of Targets left [Break the Targets]
+0x06D8   word   ?? load function 801c5764
+0x06DC   short  ?? load function 801c5774
+0x0724   float  ?? load & store function 801c4368 (BtT?)
+0x0728   float  ?? 
+0x0740   word   ?? load function 801c5794
+
+--- 8049EE10 ---
+0x0748   point  Gr_.dat file offset start in RAM
+0x074C	 point	Gr_.dat, Map_Head offset
+0x08A8	 float  P1 Spawn Point - x coord
+0x08AC	 float	P1 Spawn Point - y coord
+
+
+
+
+DAT File Stuff
+
+grGroundParam
+0x00	byte	stage size
+0x05	byte	character shadow (FF=no, 00=fully black)
+0x4c	word	00000001 = always use Fixed Camera Mode 
+0x50	float	fixed camera x-axis offset
+
+
+Material Structure Flags
+0xXXXXXXXX
+(40000000) = use color struct, I think. or maybe allow alpha, idk
+(04000000) = character casts shadow on material
+(00000002) = color node data enabled
+
+
+
+Action State Names and IDs
+----------------------------
+ID	Action State
+0000	DeadDown
+0001	DeadLeft
+0002	DeadRight
+0003	DeadUp
+0004	DeadUpStar
+0005	DeadUpStarIce
+0006	DeadUpFall
+0007	DeadUpFallHitCamera
+0008	DeadUpFallHitCameraFlat
+0009	DeadUpFallIce
+000A	DeadUpFallHitCameraIce
+000B	Sleep
+000C	Rebirth
+000D	RebirthWait
+000E	Wait
+000F	WalkSlow
+0010	WalkMiddle
+0011	WalkFast
+0012	Turn
+0013	TurnRun
+0014	Dash
+0015	Run
+0016	RunDirect
+0017	RunBrake
+0018	KneeBend
+0019	JumpF
+001A	JumpB
+001B	JumpAerialF
+001C	JumpAerialB
+001D	Fall
+001E	FallF
+001F	FallB
+0020	FallAerial
+0021	FallAerialF
+0022	FallAerialB
+0023	FallSpecial
+0024	FallSpecialF
+0025	FallSpecialB
+0026	DamageFall
+0027	Squat
+0028	SquatWait
+0029	SquatRv
+002A	Landing
+002B	LandingFallSpecial
+002C	Attack11
+002D	Attack12
+002E	Attack13
+002F	Attack100Start
+0030	Attack100Loop
+0031	Attack100End
+0032	AttackDash
+0033	AttackS3Hi
+0034	AttackS3HiS
+0035	AttackS3S
+0036	AttackS3LwS
+0037	AttackS3Lw
+0038	AttackHi3
+0039	AttackLw3
+003A	AttackS4Hi
+003B	AttackS4HiS
+003C	AttackS4S
+003D	AttackS4LwS
+003E	AttackS4Lw
+003F	AttackHi4
+0040	AttackLw4
+0041	AttackAirN
+0042	AttackAirF
+0043	AttackAirB
+0044	AttackAirHi
+0045	AttackAirLw
+0046	LandingAirN
+0047	LandingAirF
+0048	LandingAirB
+0049	LandingAirHi
+004A	LandingAirLw
+004B	DamageHi1
+004C	DamageHi2
+004D	DamageHi3
+004E	DamageN1
+004F	DamageN2
+0050	DamageN3
+0051	DamageLw1
+0052	DamageLw2
+0053	DamageLw3
+0054	DamageAir1
+0055	DamageAir2
+0056	DamageAir3
+0057	DamageFlyHi
+0058	DamageFlyN
+0059	DamageFlyLw
+005A	DamageFlyTop
+005B	DamageFlyRoll
+005C	LightGet
+005D	HeavyGet
+005E	LightThrowF
+005F	LightThrowB
+0060	LightThrowHi
+0061	LightThrowLw
+0062	LightThrowDash
+0063	LightThrowDrop
+0064	LightThrowAirF
+0065	LightThrowAirB
+0066	LightThrowAirHi
+0067	LightThrowAirLw
+0068	HeavyThrowF
+0069	HeavyThrowB
+006A	HeavyThrowHi
+006B	HeavyThrowLw
+006C	LightThrowF4
+006D	LightThrowB4
+006E	LightThrowHi4
+006F	LightThrowLw4
+0070	LightThrowAirF4
+0071	LightThrowAirB4
+0072	LightThrowAirHi4
+0073	LightThrowAirLw4
+0074	HeavyThrowF4
+0075	HeavyThrowB4
+0076	HeavyThrowHi4
+0077	HeavyThrowLw4
+0078	SwordSwing1
+0079	SwordSwing3
+007A	SwordSwing4
+007B	SwordSwingDash
+007C	BatSwing1
+007D	BatSwing3
+007E	BatSwing4
+007F	BatSwingDash
+0080	ParasolSwing1
+0081	ParasolSwing3
+0082	ParasolSwing4
+0083	ParasolSwingDash
+0084	HarisenSwing1
+0085	HarisenSwing3
+0086	HarisenSwing4
+0087	HarisenSwingDash
+0088	StarRodSwing1
+0089	StarRodSwing3
+008A	StarRodSwing4
+008B	StarRodSwingDash
+008C	LipStickSwing1
+008D	LipStickSwing3
+008E	LipStickSwing4
+008F	LipStickSwingDash
+0090	ItemParasolOpen
+0091	ItemParasolFall
+0092	ItemParasolFallSpecial
+0093	ItemParasolDamageFall
+0094	LGunShoot
+0095	LGunShootAir
+0096	LGunShootEmpty
+0097	LGunShootAirEmpty
+0098	FireFlowerShoot
+0099	FireFlowerShootAir
+009A	ItemScrew
+009B	ItemScrewAir
+009C	DamageScrew
+009D	 DamageScrewAir
+009E	ItemScopeStart
+009F	ItemScopeRapid
+00A0	ItemScopeFire
+00A1	ItemScopeEnd
+00A2	ItemScopeAirStart
+00A3	ItemScopeAirRapid
+00A4	ItemScopeAirFire
+00A5	ItemScopeAirEnd
+00A6	ItemScopeStartEmpty
+00A7	ItemScopeRapidEmpty
+00A8	ItemScopeFireEmpty
+00A9	ItemScopeEndEmpty
+00AA	ItemScopeAirStartEmpty
+00AB	ItemScopeAirRapidEmpty
+00AC	ItemScopeAirFireEmpty
+00AD	ItemScopeAirEndEmpty
+00AE	LiftWait
+00AF	LiftWalk1
+00B0	LiftWalk2
+00B1	LiftTurn
+00B2	GuardOn
+00B3	Guard
+00B4	GuardOff
+00B5	GuardSetOff
+00B6	GuardReflect
+00B7	DownBoundU
+00B8	DownWaitU
+00B9	DownDamageU
+00BA	DownStandU
+00BB	DownAttackU
+00BC	DownFowardU
+00BD	DownBackU
+00BE	DownSpotU
+00BF	DownBoundD
+00C0	DownWaitD
+00C1	DownDamageD
+00C2	DownStandD
+00C3	DownAttackD
+00C4	DownFowardD
+00C5	DownBackD
+00C6	DownSpotD
+00C7	Passive
+00C8	PassiveStandF
+00C9	PassiveStandB
+00CA	PassiveWall
+00CB	PassiveWallJump
+00CC	PassiveCeil
+00CD	ShieldBreakFly
+00CE	ShieldBreakFall
+00CF	ShieldBreakDownU
+00D0	ShieldBreakDownD
+00D1	ShieldBreakStandU
+00D2	ShieldBreakStandD
+00D3	FuraFura
+00D4	Catch
+00D5	CatchPull
+00D6	CatchDash
+00D7	CatchDashPull
+00D8	CatchWait
+00D9	CatchAttack
+00DA	CatchCut
+00DB	ThrowF
+00DC	ThrowB
+00DD	ThrowHi
+00DE	ThrowLw
+00DF	CapturePulledHi
+00E0	CaptureWaitHi
+00E1	CaptureDamageHi
+00E2	CapturePulledLw
+00E3	CaptureWaitLw
+00E4	CaptureDamageLw
+00E5	CaptureCut
+00E6	CaptureJump
+00E7	CaptureNeck
+00E8	CaptureFoot
+00E9	EscapeF
+00EA	EscapeB
+00EB	Escape
+00EC	EscapeAir
+00ED	ReboundStop
+00EE	Rebound
+00EF	ThrownF
+00F0	ThrownB
+00F1	ThrownHi
+00F2	ThrownLw
+00F3	ThrownLwWomen
+00F4	Pass
+00F5	Ottotto
+00F6	OttottoWait
+00F7	FlyReflectWall
+00F8	FlyReflectCeil
+00F9	StopWall
+00FA	StopCeil
+00FB	MissFoot
+00FC	CliffCatch
+00FD	CliffWait
+00FE	CliffClimbSlow
+00FF	CliffClimbQuick
+0100	CliffAttackSlow
+0101	CliffAttackQuick
+0102	CliffEscapeSlow
+0103	CliffEscapeQuick
+0104	CliffJumpSlow1
+0105	CliffJumpSlow2
+0106	CliffJumpQuick1
+0107	CliffJumpQuick2
+0108	AppealR
+0109	AppealL
+010A	ShoulderedWait
+010B	ShoulderedWalkSlow
+010C	ShoulderedWalkMiddle
+010D	ShoulderedWalkFast
+010E	ShoulderedTurn
+010F	ThrownFF
+0110	ThrownFB
+0111	ThrownFHi
+0112	ThrownFLw
+0113	CaptureCaptain
+0114	CaptureYoshi
+0115	YoshiEgg
+0116	CaptureKoopa
+0117	CaptureDamageKoopa
+0118	CaptureWaitKoopa
+0119	ThrownKoopaF
+011A	ThrownKoopaB
+011B	CaptureKoopaAir
+011C	CaptureDamageKoopaAir
+011D	CaptureWaitKoopaAir
+011E	ThrownKoopaAirF
+011F	ThrownKoopaAirB
+0120	CaptureKirby
+0121	CaptureWaitKirby
+0122	ThrownKirbyStar
+0123	ThrownCopyStar
+0124	ThrownKirby
+0125	BarrelWait
+0126	Bury
+0127	BuryWait
+0128	BuryJump
+0129	DamageSong
+012A	DamageSongWait
+012B	DamageSongRv
+012C	DamageBind
+012D	CaptureMewtwo
+012E	CaptureMewtwoAir
+012F	ThrownMewtwo
+0130	ThrownMewtwoAir
+0131	WarpStarJump
+0132	WarpStarFall
+0133	HammerWait
+0134	HammerWalk
+0135	HammerTurn
+0136	HammerKneeBend
+0137	HammerFall
+0138	HammerJump
+0139	HammerLanding
+013A	KinokoGiantStart
+013B	KinokoGiantStartAir
+013C	KinokoGiantEnd
+013D	KinokoGiantEndAir
+013E	KinokoSmallStart
+013F	KinokoSmallStartAir
+0140	KinokoSmallEnd
+0141	KinokoSmallEndAir
+0142	Entry
+0143	EntryStart
+0144	EntryEnd
+0145	DamageIce
+0146	DamageIceJump
+0147	CaptureMasterhand
+0148	CapturedamageMasterhand
+0149	CapturewaitMasterhand
+014A	ThrownMasterhand
+014B	CaptureKirbyYoshi
+014C	KirbyYoshiEgg
+014D	CaptureLeadead
+014E	CaptureLikelike
+014F	DownReflect
+0150	CaptureCrazyhand
+0151	CapturedamageCrazyhand
+0152	CapturewaitCrazyhand
+0153	ThrownCrazyhand
+0154	BarrelCannonWait
+0155	Wait1
+0156	Wait2
+0157	Wait3
+0158	Wait4
+0159	WaitItem
+015A	SquatWait1
+015B	SquatWait2
+015C	SquatWaitItem
+015D	GuardDamage
+015E	EscapeN
+015F	AttackS4Hold
+0160	HeavyWalk1
+0161	HeavyWalk2
+0162	ItemHammerWait
+0163	ItemHammerMove
+0164	ItemBlind
+0165	DamageElec
+0166	FuraSleepStart
+0167	FuraSleepLoop
+0168	FuraSleepEnd
+0169	WallDamage
+016A	CliffWait1
+016B	CliffWait2
+016C	SlipDown
+016D	Slip
+016E	SlipTurn
+016F	SlipDash
+0170	SlipWait
+0171	SlipStand
+0172	SlipAttack
+0173	SlipEscapeF
+0174	SlipEscapeB
+0175	AppealS
+0176	Zitabata
+0177	CaptureKoopaHit
+0178	ThrownKoopaEndF
+0179	ThrownKoopaEndB
+017A	CaptureKoopaAirHit
+017B	ThrownKoopaAirEndF
+017C	ThrownKoopaAirEndB
+017D	ThrownKirbyDrinkSShot
+017E	ThrownKirbySpitSShot

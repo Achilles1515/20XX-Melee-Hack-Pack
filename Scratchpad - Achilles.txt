@@ -359,13 +359,13 @@ bne- 	END
 lhz	r15,-0x248A(r16)	# load stage ID from 8046DB76
 
 ##CUSTOM EXCEPTION FOR LAGLESS FOD###
-cmpwi	r15,2		# is stage fountain of dreams?
-bne-	CONTINUE_SPAWN
-lis	r18,0x801d
-lhz	r18,-0x4170(r18)
-cmpwi	r18,0x4800	# if lagless, no plat FoD is on
-bne-	CONTINUE_SPAWN
-li	r17,1		# make second custom spawn happen
+#cmpwi	r15,2		# is stage fountain of dreams?
+#bne-	CONTINUE_SPAWN
+#lis	r18,0x801d
+#lhz	r18,-0x4170(r18)
+#cmpwi	r18,0x4800	# if lagless, no plat FoD is on
+#bne-	CONTINUE_SPAWN
+#li	r17,1		# make second custom spawn happen
 
 
 CONTINUE_SPAWN:
@@ -377,7 +377,7 @@ NEUTRAL_START_CHECK:
 lwz	r19,-0x5C6C(r19)# load neutral spawn points flag
 cmpwi	r19,0
 bne-	POINTER_REPEAT
-#if neutral start off...
+# if neutral start off...
 cmpwi	r17,0		# are spawn bits present?
 bne-	POINTER_REPEAT	# if so, make spawns happen
 addi	r18,r18,0x30	# skip first 6 stages in list (legal stages, no pokemon)
@@ -437,7 +437,7 @@ fadds	f0,f0,f1
 NANA_CHECK:
 cmpwi	r18,0xb		# Nana?
 bne-	STORE_X
-fnegs	f1,f1
+fneg	f1,f1
 fadds	f0,f0,f1
 STORE_X:
 stfs	f0,0xc(sp)	# store custom X coord
@@ -2114,7 +2114,7 @@ GetInt
 	- if greater than or equal to 10,  add to 0x37
 
 
-*************
+**********************
 * HPS File EntryPath *
 **********************
 
@@ -2168,6 +2168,50 @@ Disable Alternate Menu Music
 0415ed08 38000034
 
 (Default address value is 38000036)
+
+**************
+* Menu Music *
+**************
+
+- Dan Salvato
+
+8022e934: play music after pressing start
+80023f28: play music function
+
+8024b338: Exit sound test
+8024b4a0: Play a new song in sound test
+
+--8024b4d8--
+lwzx r3,r28,r0
+cmpwi r3,0
+bne- 0x08
+li r3,-1
+lwz r4,-0x77c0(r13)
+stb r3,0x1851(r4)
+lis r4,-32698
+ori r4,r4,40256
+stw r3,92(r4)
+cmpwi r3,0
+bge- 0x08
+li r3,0
+
+--8022e934--
+lis r4,0x8046
+ori r4,r4,0x9d40
+lwz r4,0x5c(r4)
+cmpwi r4,0
+beq END
+bgt 0x8
+li r4,0
+lwz r5,-0x77c0(r13)
+stb r4,0x1851(r5)
+mr r3,r4
+
+END:
+lis r12,0x8002
+ori r12,r12,0x3f28
+mtctr r12
+bctrl
 
 ***************
 * Random Seed *
@@ -3318,6 +3362,8 @@ Y = 0
     - normal camera has pointer value of 0 so no branching occurs.
     - (Fixed camera = 80165290)
 
+
+
 *********
 Random
 ********
@@ -3464,9 +3510,9 @@ END_DEFAULT:
 mflr r0
 
 
-************
+**********************
 * Fountain of Dreams *
-************
+**********************
 It's in function 801cbe64!!!!
 - disabling reflection, that is. But a bunch of other stuff as well.
 
@@ -3505,8 +3551,8 @@ Disable Fountain Water Animation
 - disables reflections...hmm
 
 Lagless FOD - Dan Salvato
-041cbbd4 60000000
-041cbefc 48000028
+041cbbd4 60000000 // disables some bg elements (colored circles, mist, light aura in top left)
+041cbefc 48000028 // disables reflection layer
 041cbf54 60000000 // disable background "dots" (stars?)
 041cbf84 60000000 // 
 
@@ -4810,11 +4856,6 @@ THESE HAVE PRIORITY OVER ACTION STATES.
 PRESS Y+DPAD DOWN IN DEVELOP MODE
 TO FIND ACTION STATE NAMES
 
-
-
-
-
-
 --------------
 Random aside...
 
@@ -4915,6 +4956,10 @@ cmpwi	r15,0x2a	# landing?
 beq-	IASA_CHECK_LANDING
 cmpwi	r15,0x2c	# 0x2C = Attack11 (Jab1)
 blt-	IASA_CHECK_END
+cmpwi	r15,0x2f	# 0x2f = Attack100Start (rapid jab start)
+blt-	IASA_CHECK_ATTACKS	# if between 0x2c, 0x2d, or 0x2e
+cmpwi	r15,0x32
+blt-	IASA_CHECK_END	# skip if in rapid jabs
 cmpwi	r15,0x46	# 0x45 = AttackAirLw (Dair)
 bge-	IASA_CHECK_END	#skip if not doing an attack
 IASA_CHECK_ATTACKS:
@@ -7596,7 +7641,7 @@ li	r17,8
 
 TABLE_START:
 lis	r15,0x803f	#-0xc from first table address
-ori	r15,r15,0xab64#d4b4
+ori	r15,r15,0xdb64# 803fab64 in DOL
 TABLE_LOOP:
 lwzu	r16,0xc(r15)
 cmpwi	r16,0
@@ -9521,9 +9566,16 @@ inject @ 8003dfdc - lwz r0,0x1c(sp)
 - injected upon any death, after placing char in death action state
 - executed before subtracting a stock loss
 - can use r3,r4,r5
+- r31 = port of dying player
 
+INTERNAL_OFFSET_LOAD:	# 20XX 4.06 bug fix
 lwz	r30,0x10(sp)	# load entity start of player dying
+lwz r31,0(r30)
+rlwinm. r31,r31,0,0,0	# check if this is a pointer
+bne- INTERNAL_OFFSET_LOAD_END
 lwz	r30,0x2c(r30)
+INTERNAL_OFFSET_LOAD_END:
+
 #20XX Check
 lis	r31,0x8048
 lbz	r31,-0x62D0(r31)# load menu controller major
@@ -11074,19 +11126,53 @@ OnBoot()
 
 After memory card data has been loaded.
 
-801bfa28 - lwz	r0,0x1c(sp)
+inject @ 801bfa28 - lwz	r0,0x1c(sp)
+
+
+.macro  adr_load reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+.endm
+
+.macro  byte_store reg1, reg2, address
+lis \reg2, \address @ha
+stb \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_store reg1, reg2, address
+lis \reg2, \address @ha
+stw \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
 
 ### need to copy memory card contents to debug menu flags!
-
+# check to overwrite current memory card data
 lis	r3,0x803f
 ori	r3,r3,0xa154	# start of 20XX flags
 lis	r4,0x8046
 ori	r4,r4,0x9b94
+
+########### only for 4.06 --> 4.07 transition --> no memory card overwriting
+lhz r6,6(r4)
+cmpwi r6,0x3036	# '06'
+bne- VERSION_CHECK_END
+lhz r5,6(r3)
+cmpwi r5,0x3037	# '07'
+bne- VERSION_CHECK_END
+# Yes, this is 4.06 to 4.07 first boot
+sth r5,6(r4)		# update mem card name to 4.07
+b MEMORY_CARD_SAVE
+VERSION_CHECK_END:
+############## ~end 4.06 --> 4.07
+
 lwz	r5,4(r3)	# load second word of DOL data
 lwz	r6,4(r4)	# load second word of mem card data
 cmpw	r6,r5
-bne-	END_MEM_CARD	
-
+bne-	END_MEM_CARD
 # UPDATE: 11/12/16
 	# - below commented out code was for when I was saving the main Debug Menu
 	# structure to the memory card. The code in the MnSlChr file was updated
@@ -11146,9 +11232,16 @@ bne- MEM_CARD_REPEAT
 
 
 END_MEM_CARD:
-# set Master Mode
+# DbLevel = Master Mode
 li r3,0
 stw r3,-0x6c98(r13)
+
+# MnSlChr Texture
+.set DebugMenu.MnSlChrTexture, 0x803faf70
+.set MnSlChrASCII, 0x803f115c
+word_load r3,r3,DebugMenu.MnSlChrTexture
+addi r3,r3,0x30	# don't go above 9 for now...
+byte_store r3,r4,MnSlChrASCII
 
 ## SdMenu & SdSlChr._at##
 lis	r3,0x8040
@@ -11159,7 +11252,6 @@ stb	r3,0x11ac(r4)	# SdSlChr._at @ 803f11ac
 
 
 ### Unlock Features ###
-
 lis	r3,0x8017
 ori	r3,r3,0x2898
 mtlr	r3
@@ -11179,23 +11271,98 @@ blrl
 
 
 ### PAL Mode ###
-
+MODE_INIT:
+li r6,0x64	# ASCII 'd' (.dat extension)
 lis	r3,0x8040
 lwz	r3,-0x5D00(r3)	# load PAL mode flag
 cmpwi	r3,0
-beq-	END
+beq-	MODE_INIT_CONTINUE
 #PAL Mode is on...
-lis	r3,0x803c
-ori	r3,r3,0x1f38	# -0x8 from first player file pointer
+li	r6,0x70		# ASCII 'p' (.pat extension)
+MODE_INIT_CONTINUE:
+.set playerFiles, 0x803c1f40
+.set playerFiles_plus4, playerFiles + 4
+.set playerFiles_minus8, playerFiles - 8
+adr_load r3,playerFiles_minus8
 
 CHAR_LOOP:
 lwzu	r5,8(r3)	# load player file offset
 lhz	r4,0x2(r5)	# load 2 letter char designation
 cmpwi	r4,0x4d68	# is this MasterHand?
-beq-	END
-li	r4,0x70		# ASCII "p" (for .pat extension)
-stb	r4,0x5(r5)	# make .pat
+beq-	MODE_INIT_END
+stb	r6,0x5(r5)	# make .pat or .dat
 b	CHAR_LOOP
+MODE_INIT_END:
+
+COSTUME_INIT:	# set alt costumes off
+.set costumeTable, 0x803D51A0
+li r3,0	# player counter, external ID
+
+
+
+COSTUME_INIT_LOOP:
+.set characterIDtable, 0x803bcde0
+adr_load r5,characterIDtable
+mulli r6,r3,3
+add r5,r5,r6
+lbz r6,0(r5)
+lbz r7,1(r5)	# secondary char
+cmpwi r6,0x1b
+bge- COSTUME_INIT_COMPARE
+COSTUME_INIT_SECONDARY_CHAR:
+
+adr_load r4,costumeTable
+mulli r5,r3,4
+lbzx r4,r4,r5	# r4 = number of costumes for this player
+COSTUME_INIT_LOOP_COSTUME:
+
+adr_load r5,playerFiles_plus4
+mulli r6,r6,8
+lwzx r5,r5,r6	# r5 = player costume ASCII stuff
+COSTUME_INIT_FIND_COSTUME:
+lbzu r6,1(r5)
+cmpwi r6,0x2e	# check for period, '.'
+bne- COSTUME_INIT_FIND_COSTUME
+li r6,0x64	# 'd' for .dat
+
+#red falcon check
+cmpwi r3,0	# captain falcon?
+bne- COSTUME_INIT_RED_FALCON_FALSE
+cmpwi r4,4	# red falcon?
+bne- COSTUME_INIT_RED_FALCON_FALSE
+COSTUME_INIT_RED_FALCON_TRUE:
+stb r6,-1(r5)
+b COSTUME_INIT_RED_FALCON_END
+COSTUME_INIT_RED_FALCON_FALSE:
+stb r6,1(r5)
+COSTUME_INIT_RED_FALCON_END:
+
+subi r4,r4,1
+cmpwi r4,0
+bne- COSTUME_INIT_FIND_COSTUME
+cmpwi r7,0xff
+beq- COSTUME_INIT_SECONDARY_CHECK_END
+mr r6,r7
+li r7,0xff
+b COSTUME_INIT_SECONDARY_CHAR
+
+COSTUME_INIT_SECONDARY_CHECK_END:
+COSTUME_INIT_COMPARE:
+addi r3,r3,1
+cmpwi r3,0x20
+blt- COSTUME_INIT_LOOP
+
+METAL_FLAGS:
+.set metal_20XX, 0x8000335c
+li r4,0
+word_store r4,r3,metal_20XX
+
+FORCE_TEAM_MODE:
+# force team mode as default for Tag Team Melee (Slo-Mo Melee) and Dual 1v1 (Giant Melee)
+lis r3,0x8046
+li r4,1	# Teams mode ON
+stb r4,-0x49A0(r3)	# Dual 1v1
+stb r4,-0x4720(r3)	# Tag Team Melee
 
 END:
 lwz	r0,0x1c(sp)
@@ -11551,7 +11718,7 @@ Text Data Struct
 0x00   short   x offset (0=screenleft)
 0x02   short   y offset (0=screentop)
 0x04   byte    max character width of menu
-0x05   byte    max rows (?)
+0x05   byte    max rows
 0x06   byte    current character count cursor point (left to right)
 0x07   byte    current row cursor point (top to bottom)
 0x08   float   width of menu (stretch)
@@ -11729,7 +11896,7 @@ lwz	r0,0x3c(sp)	# default code line
 *********************************
 * Every Frame Function, Master? *
 *********************************
-per frame function, oneveryframe, on every frame
+per frame function, oneveryframe(), on every frame
 
 ON-SCREEN TEXT:
 
@@ -11935,14 +12102,13 @@ stwx r6,r3,r8
 addi r5,r5,1
 cmpwi r5,6
 bne+ INVINCIBLE_CHECK_MAKE_DEFAULT_LOOP
-li r3,0	# Menu backwar SFX
+li r3,0	# Menu backward SFX
 ADR_BLRL r4,0x80024030	# Play SFX common
 INVINCIBLE_END:
 
 TE_INPUT_DISPLAY:
 .set TE_DISPLAY_ID, 2
 .set TE_STRUCT_LOC, 0x803fc290 # 803fc290 is location of input display text structs (!!!!!)
-
 mr r3,r31
 bl BUTTONS_CURRENT
 rlwinm. r3,r3,0,20,20	# holding Y?
@@ -11952,11 +12118,32 @@ bl BUTTONS_INSTANT
 rlwinm. r3,r3,0,31,31	# instant d-pad left?
 beq-	TE_INPUT_DISPLAY_END
 # add in TE input display background?
-li r3,TE_DISPLAY_ID
-ADR_LOAD r4,TE_STRUCT_LOC
-bl STRUCT_TOGGLE
+bl TE_INPUT_DISPLAY_FLAG
+mflr r3
+lwz r4,0(r3)	# load flag
+li r5,0	# off as default
+cmpwi r4,1
+beq- TE_INPUT_FLAG_STORE
+li r5,1
+TE_INPUT_FLAG_STORE:
+stw r5,0(r3)
+b TE_INPUT_DISPLAY_END
+
+TE_INPUT_DISPLAY_FLAG:
+blrl
+.long 0x00000000	# flag here, persists across matches
 
 TE_INPUT_DISPLAY_END:
+TE_INPUT_FLAG_CHECK:
+bl TE_INPUT_DISPLAY_FLAG
+mflr r3
+lwz r4,0(r3)	# load flag
+li r3,TE_DISPLAY_ID
+cmpwi r4,0	
+beq- TE_INPUT_DISPLAY_DISPLAY_GO	# use r4 = 0 as input
+ADR_LOAD r4,TE_STRUCT_LOC
+TE_INPUT_DISPLAY_DISPLAY_GO:
+bl STRUCT_POINTER_STORE
 
 
 REPLAY_MENU_DISPLAY:
@@ -12229,7 +12416,11 @@ REPLAY_MENU_CPU_TYPE_END:
 REPLAY_MENU_CPU_TYPE_20XX:
 cmpwi r24,replay_lineitem.cputype20XX
 bne- REPLAY_MENU_CPU_TYPE_20XX_END
-addi r7,r30,0xd	# internal +0xd = [custom] 20XX "non-ai" type
+#addi r7,r30,0xd	# internal +0xd = [custom] 20XX "non-ai" type
+.set CPUTYPE_20XX, 0x80003374
+ADR_LOAD r8,CPUTYPE_20XX
+lbz r7,0xc(r30)
+add r7,r8,r7
 stw r7,ingame_menu.flag(r25)
 b REPLAY_MENU_INCDEC_BYTE
 REPLAY_MENU_CPU_TYPE_20XX_END:
@@ -12464,7 +12655,15 @@ stw r5,TEXTSTRUCT_PTR(r3)
 STRUCT_TOGGLE_END:
 mr r3,r5
 blr
+#---------------
 
+STRUCT_POINTER_STORE:
+# Inputs: r3 = text struct ID, r4 = ptr to set to or null
+ADR_LOAD r5,TEXTSTRUCT_LOC
+mulli r3,r3,TEXTSTRUCT_SIZE
+add r3,r5,r3
+stw r4,TEXTSTRUCT_PTR(r3)
+blr
 #----------------------------
 # Input: r3 = text struct ID
 STRUCT_PTR_GET:
@@ -14054,6 +14253,33 @@ blr
 END:
 lwzx	r0,r31,r0	# default code line
 
+-----------
+
+
+Striked Stages Cannot be Randomly Selected (Pt2)
+- actually more like part 1 though...
+- ensures the "already chosen" flag at SSS_stage struct +0x4 gets reset back to 0 if necessary
+	- fixes bug in 4.06 with striking down to a single stage, then randomly selecting it twice in a row and the second time going to Peach's Castle 
+
+inject @ 80259B68 - lwz r0,4(r28)
+lwz r3,0(r28)	# load JObj pointer
+cmpwi r3,0	# this will be 0 if "RANDOM" stage select is ON
+beq- END
+lis r5,0x8040
+ori r5,r5,0x6708	# make sure the struct is initialized
+lwz r4,0(r3)
+cmpw r4,r5
+bne- END
+lhz	r4,0x14(r3)
+cmpwi r4,0
+bne-	END
+lis r3,0x8025
+ori r3,r3,0x9a38
+mtlr r3
+blr
+END:
+lwz r0,4(r28)	# default code line
+
 
 *****************************
 * 20XX Debug Menu RAM Check *
@@ -15477,6 +15703,42 @@ Function 801c5800 gets executed at Match Start and during Pause/Unpause to chang
 Disable Fixed Camera for Fixed Camera Mode
 04165290 4e800020
 
+inject @ 80165290
+
+.set CameraInfo, 0x80452c68
+.set CameraInfo.Type, 4
+.set CameraType.Default, 0
+.set CameraType.Fixed, 4
+.set StageInfo, 0x8049e6c8
+.set StageInfo.grGroundParam, 0x6b0
+.set StageInfo.grGroundParam_off, StageInfo + StageInfo.grGroundParam
+.set grGroundParam.FixedCamera, 0x4C
+
+.macro  adr_load reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+.endm
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+adr_load r4, CameraInfo
+word_load r3,r3,StageInfo.grGroundParam_off
+lwz r3,grGroundParam.FixedCamera(r3)
+cmpwi r3,0
+beq+ CAMERA_DEFAULT
+CAMERA_FIXED:
+li r3, CameraType.Fixed
+b CAMERA_STORE
+CAMERA_DEFAULT:
+li r3, CameraType.Default
+CAMERA_STORE:
+stw r3,CameraInfo.Type(r4)
+
+END:
+blr	# skip always setting fixed camera
 
 *********************
 * Disable HUD Stuff *
@@ -18068,6 +18330,7 @@ inject @ 802259ec - lwz r30,0x20(sp)
 - 10/7/16 Started using the functions involved in training mode reset
 - 3/21/17 Massive lightbulb illuminated regarding mem allocation and user defined save state toggle tables. Rewrote much of the beginning to accomodate.
 
+
 .macro  adr_load reg, address
 lis \reg, \address @h
 ori \reg,\reg,\address @l
@@ -18486,6 +18749,48 @@ lwz	r3,8(r7)
 cmpwi r3,3	# is char not in match?
 beq- RELOAD_PERCENT_CONTINUE
 
+LOAD_STATE_RANDOM_DAMAGE:
+.set HSD_Randi, 0x80380580
+.set DebugMenu.LoadStateRandDamageMin, 0x803fa31c
+.set DebugMenu.LoadStateRandDamageMax, 0x803fa288
+.set DebugMenu.LoadStateRandDamage, 0x803faf6c
+
+word_load r3,r3, DebugMenu.LoadStateRandDamage
+cmpwi r3,0
+beq- LOAD_STATE_RANDOM_DAMAGE_END
+li r8,0
+word_load r3,r3, DebugMenu.LoadStateRandDamageMin
+word_load r4,r4, DebugMenu.LoadStateRandDamageMax
+cmpw r4,r3
+ble- LOAD_STATE_RANDOM_DAMAGE_RAND
+li r8,1
+sub r3,r4,r3
+addi r3,r3,1	# inclusive
+LOAD_STATE_RANDOM_DAMAGE_RAND:
+adr_blrl r4, HSD_Randi
+cmpwi r8,0
+beq- LOAD_STATE_RANDOM_DAMAGE_STORE
+word_load r4,r4, DebugMenu.LoadStateRandDamageMin
+add r3,r3,r4
+LOAD_STATE_RANDOM_DAMAGE_STORE:
+sth r3,0x60(r7)
+INT_TO_FLOAT:
+lfd	f3,-0x7470(r2)	# 4d8570. loads magic double for int to float conversion
+stfd	f3,0x20(r2)
+sth	r3,0x26(r2)	# 0x43300000800000xx. put 1st int at end of magic double
+lfd	f1,0x20(r2)
+fsubs	f1,f1,f3	# subtract 0x4330000080000000 for converted int 1
+lwz r4,0xb0(r7)
+lwz r4,0x2c(r4)
+stfs f1,0x1830(r4)
+lwz r4,0xb4(r7)
+cmpwi r4,0
+beq- LOAD_STATE_RANDOM_DAMAGE_END
+lwz r4,0x2c(r4)
+stfs f1,0x1830(r4)
+LOAD_STATE_RANDOM_DAMAGE_END:
+
+
 lis r3,0x804a
 ori r3,r3,0x10c8
 mulli r4,r31,100
@@ -18722,6 +19027,30 @@ li r3,1	# set bad action state as true by default
 PLAYER_ACTION_STATE_LOOP:
 lwz r4,0x2c(r4)	# load internal
 lwz r5,0x10(r4)	# load action state
+
+PLAYER_ACTION_STATE_CHARACTER_START:
+lwz	r6,4(r4)	# load internal char ID
+PLAYER_ACTION_STATE_LOOP_SAMUS:
+cmpwi r6,0xd	# Samus
+bne- PLAYER_ACTION_STATE_LOOP_SAMUS_END
+lwz r6,0x223c(r4)	# load grapple entity pointer
+cmpwi r6,0
+bne- PLAYER_ACTION_STATE_END
+b PLAYER_ACTION_STATE_CHARACTER_END
+PLAYER_ACTION_STATE_LOOP_SAMUS_END:
+PLAYER_ACTION_STATE_LOOP_LINK:
+cmpwi r6,6	# Link
+beq- PLAYER_ACTION_STATE_LOOP_LINK_EXECUTE
+cmpwi r6,0x14	# young link
+bne- PLAYER_ACTION_STATE_LOOP_LINK_END
+PLAYER_ACTION_STATE_LOOP_LINK_EXECUTE:
+lwz r6,0x2238(r4)	# grapple entity pointer
+cmpwi r6,0
+bne- PLAYER_ACTION_STATE_END
+b PLAYER_ACTION_STATE_CHARACTER_END
+PLAYER_ACTION_STATE_LOOP_LINK_END:
+
+PLAYER_ACTION_STATE_CHARACTER_END:
 cmpwi r5,0xc	# Rebirth
 beq-	PLAYER_ACTION_STATE_END
 cmpwi r5,0xd	# RebirthWait
@@ -19581,6 +19910,58 @@ and the last line removes the function that creates a separate thread for the so
 
 0xcc006430 controls the polling rate.
 
+--------------
+
+The C2 injection code from above
+inject @ 801a4da0
+stw r0,0(r28)
+lis r12,0x8001
+ori r12,r12,0x95fc
+mtctr r12
+bctrl
+
+-------------
+
+402ca0 - NTSC TV Format polling struct start
+402cd0 - PAL TV Format polling struct start
+
+each word line in the struct represent...time?...stuff for the different SISetSampling rate input variable (0x0 to 0xb).
+0x00	half	SIPOLL|X|
+0x02	byte	SIPOLL|Y|
+
+ 
+SISetXY: x is out of range of 8 <= x <= 1023
+	y is out of range 0 <= y <=255
+
+
+PAD POLL SYNCED TO GAME ENGINE :
+SMASH TURN - 2 FRAME WINDOW :
+
+PAD POLL SAMPLING RATE (MSECS) : 
+DEFAULT = 11. MISLEADING - ACTUAL SAMPLE RATE DIFFERS
+
+402ca0
+402ccc
+
+OSAlarm 0x432a40
+a4cb8 = 675000
+
+8001960c
+
+lis r4,0x8037
+ori r4,r4,0x69fc
+mtlr r4
+li r3,0
+blrl
+lis r4,0x8037
+ori r4,r4,0x69fc
+mtlr r4
+li r3,0
+blrl
+
+
+
+
 
 ************************
 * Kongo Jungle (Melee) *
@@ -20084,9 +20465,17 @@ beq-	ACTION_STATE	# 0xD1 = subaction / action state ID
 cmpwi	r24,0xD2
 beq-	TOPN		# 0xD2 = frame stopwatch
 
+cmpwi	r24,0xD3
+beq-	JAB_INFO
 b	NULL_FLOATS	# load null floats if invalid setting on this float pair
 
-
+JAB_INFO:
+lwz	r22,0x1a54(r29)	# load rapid jab A counter
+lfs	f1,0x196c(r29)	# load link window frames left
+fctiwz f1,f1		# convert float to int
+stfd f1,0x20(r2)
+lwz r23,0x24(r2)	# load int
+b	INT_TO_FLOAT
 
 TOPN:
 cmpw	r25,r27
@@ -20564,7 +20953,7 @@ b	LOOP_END
 
 
 INT_TO_FLOAT:
-lfd	f3,-29808(r2)	# 4d8570. loads magic double for int to float conversion
+lfd	f3,-0x7470(r2)	# 4d8570. loads magic double for int to float conversion
 stfd	f3,0x20(r2)
 stfd	f3,0x28(r2)
 sth	r22,0x26(r2)	# 0x43300000800000xx. put 1st int at end of magic double
@@ -21145,8 +21534,8 @@ Each special ASCII data is 0x2C in length (1 per char)
 - can I just use bdcd80?
 - well, I could always use dataspace in MnSlChr...
 
-X: %7.4f\nY: %7.4f
-583a2025372e34660A593a2025372e3466
+JX: %7.4fJY: %7.4f
+
 
 
 For doing floating point numbers, it is essential to do a crset
@@ -21358,6 +21747,35 @@ Custom Text Struct Engine
 
 inject @ 80302620
 
+
+.macro adr_load reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+.endm
+
+.macro  byte_load reg1, reg2, address
+lis \reg2, \address @ha
+lbz \reg1,\address @l (\reg2)
+.endm
+
+.macro  byte_store reg1, reg2, address
+lis \reg2, \address @ha
+stb \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_store reg1, reg2, address
+lis \reg2, \address @ha
+stw \reg1,\address @l (\reg2)
+.endm
+
+.set origin, 0x804a89b0
+.set p2, 0x804C1FF8
+
 CUSTOM_TEXT_STRUCT_ENGINE:
 # two default functions that need to be ran through first
 lis r3,0x8037
@@ -21446,6 +21864,33 @@ stw r3,8(sp)	# store current struct on stack
 
 li r4,0
 sth r4,6(r3) # reset cursor
+
+adr_load r5,origin
+mulli r4,r31,0xc
+add r5,r5,r4
+lbz r6,3(r5)
+extsb r6,r6
+lbz r5,2(r5)
+extsb r5,r5
+bl ORIGIN_TEXT
+mflr r7
+lis r4,0x8030
+ori r4,r4,0x2d4c
+mtlr r4
+mr r4,r7
+blrl
+lwz r3,8(sp)
+b ORIGIN_TEXT_END
+ANALOG_FLOAT_TEXT:
+blrl
+.asciz "JX: %7.4fJY: %7.4f\nCX: %7.4fCY: %7.4f\nL: %8.6fR: %8.6f"
+.balign 4
+ORIGIN_TEXT:
+blrl
+.asciz "X:%3d Y:%3d\n"
+.balign 4
+ORIGIN_TEXT_END:
+
 lis r4,0x804c
 ori r4,r4,0x1fac
 mulli r5,r31,0x44
@@ -21457,12 +21902,14 @@ lfs f4,0x2c(r4)
 lfs f5,0x30(r4)
 lfs f6,0x34(r4)
 
+bl ANALOG_FLOAT_TEXT
+mflr r7
 lis r4,0x8030
 ori r4,r4,0x2d4c
 mtlr r4
-
-lis r4,0x80fa
-ori r4,r4,0xd190	# ASCII string location (3c0a70 in MnSlChr)
+mr r4,r7
+#lis r4,0x80fa
+#ori r4,r4,0xd190	# ASCII string location (3c0a70 in MnSlChr)
 
 .long 0x4cc63242 # crset 6,6
 blrl
@@ -21626,10 +22073,19 @@ lwz r31,8(sp)	# load current struct number from stack
 addi sp,sp,0xc	# pop back stack
 b CUSTOM_STRUCT_AREA_COMPARE
 CUSTOM_STRUCT_INGAME_MENU_END:
-
 #------------------------------
 
 CUSTOM_STRUCT_DEFAULT:	# default action is to loop through all structs and display
+li r4,0
+CUSTOM_STRUCT_DBLEVEL:
+#DbLevel in-game pause menu check
+lis r5,0x8000
+ori r5,r5,0x3acc
+cmpw r5,r3
+bne- CUSTOM_STRUCT_DBLEVEL_END
+lis r4,0x8000
+ori r4,r4,0x3b00	# location of ASCII
+CUSTOM_STRUCT_DBLEVEL_END:
 bl	STRUCT_LOOP_FUNCTION
 
 CUSTOM_STRUCT_AREA_COMPARE:
@@ -21645,11 +22101,33 @@ stw r0,4(sp)
 stwu sp,-0x20(sp)
 stw r31,0x1c(sp)
 stw r30,0x18(sp)
+stw r4,0x14(sp)
 STRUCT_LOOP:
-lis r31,0x8030
-ori r31,r31,0x22bc	# r24 and up is saved to stack
-mtlr	r31
 mr r31,r3
+
+#####
+lwz r4,0x14(sp)
+cmpwi r4,0
+beq- STRUCT_LOOP_DISPLAY
+li r5,0
+sth r5,6(r3) # reset cursor
+#####lwz r4,0x28(r3)
+
+lis r12,0x8030
+ori r12,r12,0x2d4c	# function to create special ASCII
+mtlr r12
+blrl
+####
+STRUCT_LOOP_DISPLAY:
+lis r12,0x8030
+ori r12,r12,0x22bc	# r24 and up is saved to stack
+mtlr	r12
+mr r3,r31
+blrl
+mr r3,r31
+lis r12,0x8030
+ori r12,r12,0x2bb0	# zero special ASCII
+mtlr r12
 blrl
 lwz	r3,0x30(r31)	# load next struct
 cmpwi	r3,0
@@ -21669,6 +22147,7 @@ ori r31,r31,0x2640
 mtlr r31
 lwz r31,-0x4888(r13)	# default code line
 blr
+
 
 
 ***********************
@@ -21881,7 +22360,7 @@ stb r0,0x618(r29)
 -------
 
 Tag Team Melee - Main Code
-inject @ 0x2259f0 - lwz r29,0x1c(sp)
+inject @ 0x802259f0 - lwz r29,0x1c(sp)
 
 Unique situations to address:
 - match start --> sleep one of the players on a team
@@ -21935,10 +22414,17 @@ lbz r6,0xc(r4)
 mulli r6,r6,0xe90
 lis r5,0x8045
 ori r5,r5,0x3088	# P1 slot type
-lwzx r0,r6,r5
+lwzx r0,r6,r5	# load slot type of this player
 cmpwi r0,0
 beq+ TEAMMATE_CPU_CHECK_END	# if teammate is human, skip
 # if teammate is CPU
+TEAMMATE_CPU_PRIMARY_CPU:
+lbz r0,0xc(r30)
+mulli r7,r0,0xe90
+lwzx r0,r7,r5
+cmpwi r0,1
+beq- TEAMMATE_CPU_CHECK_END
+TEAMMATE_CPU_PRIMARY_CPU_END:
 li r0,0		
 stwx r0,r6,r5	# set type as human ID
 lbz r5,0x618(r30)	# get primary teammate controller index
@@ -22592,7 +23078,7 @@ DEFAULT:
 lis r7,0x802f
 ori r7,r7,0x2094	# trophy drop function
 mtlr r7
-blr
+blrl
 END:
 
 ****************
@@ -25565,7 +26051,7 @@ blrl
 
 -----------
 
-TopN Location Prediction - No DI
+TopN Location Prediction - Pre-DI (No DI)
 
 inject @ 8008e5c4 - mr r31,r3
 
@@ -25698,6 +26184,24 @@ b END_CLEANUP
 HITSTUN_CHECK_NONE_END:
 
 subi	r30,r30,1
+
+THROW_PRIORITY_CHECK:
+lwz r3,-0x3e68(r13)
+cmpwi r3,0
+beq- THROW_PRIORITY_END
+lwz r3,0x10(r3)
+lwz r4,0(r31)
+cmpw r3,r4
+beq+ THROW_PRIORITY_END
+lwz r3,0x2c(r3)
+lbz r4,0xc(r3)
+lbz r5,0xc(r31)
+cmpw r5,r4
+bgt-  THROW_PRIORITY_END
+THROW_PRIORITY_SUBTRACT:
+addi r30,r30,1	# subtract one frame for port priority
+THROW_PRIORITY_END:
+
 
 CHECK_MAX:
 cmpwi r30,DIStruct.DI_maxverts - 1
@@ -25844,11 +26348,13 @@ bdnz+ LOOP
 END_CLEANUP:
 addi	sp,sp,216
 END:
+#gpr_restore
+#mr r3,r31
+mr r3,r31	# 4/20/17 fix for viewing in Magus physics
 gpr_restore
-mr r3,r31
+mr r31,r3
 
 ---------------
-
 
 --> POST-DI <--
 // Note: 
@@ -25979,8 +26485,25 @@ li r30,0
 stb r30,DIStruct.nVertices(r4)
 b END_CLEANUP
 HITSTUN_CHECK_NONE_END:
-
 subi	r30,r30,1
+
+THROW_PRIORITY_CHECK:
+lwz r3,-0x3e68(r13)
+cmpwi r3,0
+beq- THROW_PRIORITY_END
+lwz r3,0x10(r3)
+lwz r4,0(r31)
+cmpw r3,r4
+beq+ THROW_PRIORITY_END
+lwz r3,0x2c(r3)
+lbz r4,0xc(r3)
+lbz r5,0xc(r31)
+cmpw r5,r4
+bgt-  THROW_PRIORITY_END
+THROW_PRIORITY_SUBTRACT:
+addi r30,r30,1	# subtract one frame for port priority
+THROW_PRIORITY_END:
+
 
 CHECK_MAX:
 cmpwi r30,DIStruct.DI_maxverts - 1
@@ -26127,6 +26650,7 @@ addi	sp,sp,216
 END:
 gpr_restore
 lwz	r0,0x5c(sp)	# default code line
+
 
 ----------------
 
@@ -26552,6 +27076,44 @@ END:
 lwz r0,0x2344(r31)	# default code line
 
 
+----------------------
+
+DI Draw Port Priority Fix Testing
+
+DI Trajectory
+when thrown
+lr = 800de83c
+r30 = external player who is throwing...not sure if this is always true
+r31 = 
+
+
+thrower is in throw animation
+
+0x1198 holds external data offset
+0x234c
+
+for Falcon,
+0x1848
+
+
+
+
+4D7838 = -0x3e68(r13)
++0x10 = external of current playerthink function pass
+
+lwz r3,-0x3e68(r13)
+lwz r3,0x10(r3)
+lwz r4,0(r31)
+cmpw r3,r4
+beq+ THROW_PRIORITY_END
+lwz r3,0x2c(r3)
+lbz r4,0xc(r3)
+lbz r5,0xc(r31)
+cmpw r5,r4
+bgt-  THROW_PRIORITY_END
+THROW_PRIORITY_SUBTRACT:
+addi r30,r30,1	# subtract one frame for port priority
+THROW_PRIORITY_END:
 
 ------------
 Game and Watch
@@ -26792,7 +27354,7 @@ stw	r4,0x24(r31)
 
 # 0xd and 0xe are CPU flags
 stb r4,0xd(r3)
-sth r4,0xe(r3)	# 0xf is replay state
+sth r4,0xe(r3)	#
 stb r4,0x21fd(r3) # tag team sleep flag
 sth r4,0x21fe(r3)	# tag team cooldown counter flags
 
@@ -27089,3 +27651,948 @@ END:
 Damage_knockbackcalculate seems to function normally
 
 8007a164 cmpwi r21,0 --> true
+
+*****************************************
+* Debug Menu Mysterious Freeze....again *
+*****************************************
+
+This time, with Dolphin 5.0
+
+invalid read from 0x00000026, PC = 80302af0
+stack:
+303ef4
+390cfc
+1a4d34
+
+tried to load r3 (pointer) from (r31) bddd40 + 0x4
+
+
+bddd40 + 0x4 = pointer to TextDataTable, I believe
+bddd40 + 0xc = pointer to start of rgb color viewer debug menu struct
+
+
+80304090 stores to null TextDataTable which causes the problem.
+
+80303868 extend signing the byte of a pointer??? why
+
+Possible fix:
+0430287c 48000008
+
+***************
+* Smash Turns *
+***************
+
+Smash turn [flags] instead of tilt turn
+040c98ac 480003c8
+040c9b5c 2C030000
+
+https://smashboards.com/threads/melee-gecko-codes-guide-and-discussion.327311/page-40#post-20457804
+
+Smash Turns Have a 2 Frame Input Window 2.0 (v1.02) [Magus]
+C20C9B4C 00000008
+A11F03E8 2C084000
+4082002C 811F2348
+2C080000 41820020
+811F2340 2C080001
+41820014 C01F002C
+FC000050 D01F002C
+38000001 2C000000
+60000000 00000000
+
+-----
+
+For 20XX:
+
+Inject @ 800C9B4C - cmpwi r0,0
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.set DebugMenu.SmashTurn, 0x803fa210	# 20XX debug menu flag location
+
+DEBUG_CHECK:
+word_load r8,DebugMenu.SmashTurn
+cmpwi r8,0
+beq+ END
+
+CHECK_IF_SLOW:
+lhz	r8,0x3E8(r31)	# animation frame
+cmpwi	r8,0x4000	# frame 2 of Turn
+bne-	END		# skip code if not frame 2 of Turn action
+
+lwz	r8,0x2348(r31)
+cmpwi	r8,0		# 0 if no 2 frame smash input beyond 0.8 dash threshold
+beq-	END		# skip if no dash input by frame 2
+
+lwz	r8,0x2340(r31)
+cmpwi	r8,1		# 1 if change of direction has already completed (empty smash turn)
+beq-	END		# skip if smash turn
+# Nana fix
+lbz r8,0x221f(r31)
+rlwinm. r8,r8,0,28,28
+beq- CHANGE_DIRECTION
+
+lwz r8,0x1a94(r31)
+cmpwi r8,6
+beq- CHANGE_DIRECTION_END
+
+CHANGE_DIRECTION:
+lfs	f0,0x2C(r31)	# loads character direction
+fneg	f0,f0
+stfs	f0,0x2C(r31)	# changes character direction, completing the turn
+CHANGE_DIRECTION_END:
+li	r0,1		# 1 if able to dash out of turn on this frame to allow Dash change action
+
+END:
+cmpwi	r0,0		# entry point (800C9B4C). check flag for turn complete and can dash this frame
+
+
+------------
+
+Testing....Ice Climbers Fix
+
+CHECK_IF_SLOW:
+lhz	r8,0x3E8(r31)	# animation frame
+cmpwi	r8,0x4000	# frame 2 of Turn
+bne-	END		# skip code if not frame 2 of Turn action
+
+lwz	r8,0x2348(r31)
+cmpwi	r8,0		# 0 if no 2 frame smash input beyond 0.8 dash threshold
+beq-	END		# skip if no dash input by frame 2
+
+lwz	r8,0x2340(r31)
+cmpwi	r8,1		# 1 if change of direction has already completed (empty smash turn)
+beq-	END		# skip if smash turn
+
+lbz r8,0x221f(r31)
+rlwinm. r8,r8,0,28,28
+beq- CHANGE_DIRECTION
+
+lwz r8,0x1a94(r31)
+cmpwi r8,6
+beq- CHANGE_DIRECTION_END
+
+CHANGE_DIRECTION:
+lfs	f0,0x2C(r31)	# loads character direction
+fneg	f0,f0
+stfs	f0,0x2C(r31)	# changes character direction, completing the turn
+CHANGE_DIRECTION_END:
+li	r0,1		# 1 if able to dash out of turn on this frame to allow Dash change action
+
+END:
+cmpwi	r0,0		# entry point (800C9B4C). check flag for turn complete and can dash this frame
+
+
+
+****************************
+* Title Screen Transitions *
+****************************
+
+No Automatic Start Screen Transition
+041a1c58 38000000
+
+-801a1c5c
+-the line that compares the title screen frame count length to 600 (10 secs) and does an automatic screen transition when the criteria is met.
+-the above code force loads a value of 0 to the register (r0) that is used in the comparison
+
+********************************
+* DK - Always Full Giant Punch *
+********************************
+
+For 20XX,
+
+inject @ 8010d988 - cmpw r5,r0
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.set DebugMenu.DKPunch, 0x803fa2d0
+
+word_load r4,r4,DebugMenu.DKPunch
+cmpwi r4,0
+beq+ DEFAULT
+stw r0,0x222c(r3)
+mr r5,r0
+
+DEFAULT:
+cmpw r5,r0
+
+**************************
+* Luigi - Always Misfire *
+**************************
+
+inject @ 80142af8
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.set DebugMenu.LuigiMisfire, 0x803fa2d4
+
+word_load r3,r3,DebugMenu.LuigiMisfire
+cmpwi r3,0
+beq+ DEFAULT
+li r0,1
+b	END
+
+DEFAULT:
+li r0,0
+END:
+
+***********************************
+* Samus - Always Full Charge Shot *
+***********************************
+
+inject @ 80128660 - fcmpu	cr0,f1,f0
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.set DebugMenu.SamusChargeShot, 0x803fa2dc
+
+word_load r4,r4,DebugMenu.SamusChargeShot
+cmpwi r4,0
+beq+ DEFAULT
+fctiwz f1,f0
+stfd f1,0x18(sp)
+lwz r4,0x1c(sp)
+stw r4,0x2230(r3)
+
+fmr f1,f0
+
+DEFAULT:
+fcmpu	cr0,f1,f0
+
+**********************************
+* Sheik - Needles Always Charged *
+**********************************
+
+inject @ 801101dc - lwz r0,0x222c(r3)
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.set DebugMenu.SheikNeedles, 0x803faf60
+
+word_load r4,r4,DebugMenu.SheikNeedles
+cmpwi r4,0
+beq+ DEFAULT
+li r0,6
+stw r0,0x222c(r3)
+
+DEFAULT:
+lwz r0,0x222c(r3)
+
+***********************************
+* Mewtwo - Always Full Shadowball *
+***********************************
+
+inject @ 80144f90 - fcmpu	cr0,f1,f0
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.set DebugMenu.MewtwoShadowball, 0x803faf64
+
+word_load r4,r4,DebugMenu.MewtwoShadowball
+cmpwi r4,0
+beq+ DEFAULT
+fctiwz f1,f0
+stfd f1,0x18(sp)
+lwz r4,0x1c(sp)
+stw r4,0x2234(r3)
+
+fmr f1,f0
+
+DEFAULT:
+fcmpu	cr0,f1,f0
+
+***********************
+* Peach - Turnip Pull *
+***********************
+
+0x3a50 in PlPe.dat = 0x80 = 128 = 1/128 percent chance to pull an item rather than turnip
+- reference code line 8011d084 (internal_data + 0x2D4 -> + 0x14)
+
+inject @ 8011d07c - li r31,99
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.macro  adr_blrl reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+mtlr \reg
+blrl
+.endm
+
+.macro  adr_blr reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+mtlr \reg
+blr
+.endm
+
+
+.set DebugMenu.PeachPull, 0x803faf68
+.set DEFAULT, 0
+.set SATURN, 9
+.set BOMB, 0xa
+.set SWORD, 0xb
+.set RANDOM_DEFAULT, 0xc
+.set RANDOM_ALL, 0xd
+.set HSD_Randi, 0x80380580
+
+li r31,0x63	# turnip, default code line
+
+word_load r4,r4,DebugMenu.PeachPull
+cmpwi r4, DEFAULT
+beq+ END
+
+cmpwi r4,SATURN
+blt- END_SKIP_ITEMS
+li r31,7
+beq- END_SKIP_ITEMS
+li r31,6
+cmpwi r4, BOMB
+beq- END_SKIP_ITEMS
+li r31,0xc
+cmpwi r4, SWORD
+beq- END_SKIP_ITEMS
+cmpwi r4, RANDOM_DEFAULT
+beq- GOTO_ITEM
+RANDOM_ITEMS:
+li r3,35
+adr_blrl r4,HSD_Randi
+cmpwi r3,0x1c	# hammer, never runs out
+beq- TURNIP
+cmpwi r3,0x1a	# big mushroom
+beq- TURNIP
+cmpwi r3,0x1b	# poison mushroom
+bne- RANDOM_ITEM_END
+TURNIP:
+li r3,0x63
+RANDOM_ITEM_END:
+mr r31,r3
+b END_SKIP_ITEMS
+GOTO_ITEM:
+adr_blr r4,0x8011d094
+
+END_SKIP_ITEMS:
+adr_blr r4,0x8011d0a0
+END:
+
+--------------
+
+Turnip Type Decide
+inject @ 802bd570 - stw r3,0xdd8(r26)
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.macro  adr_blrl reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+mtlr \reg
+blrl
+.endm
+
+.macro  adr_blr reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+mtlr \reg
+blr
+.endm
+
+
+.set DebugMenu.PeachPull, 0x803faf68
+.set DEFAULT, 0
+.set SATURN, 9
+.set BOMB, 0xa
+.set SWORD, 0xb
+.set RANDOM_DEFAULT, 0xc
+.set RANDOM_ALL, 0xd
+.set HSD_Randi, 0x80380580
+
+word_load r4,r4,DebugMenu.PeachPull
+cmpwi r4, DEFAULT
+beq+ END
+cmpwi r4, SATURN
+bge- END
+subi r3,r4,1
+
+END:
+stw r3,0xdd8(r26)
+
+********************
+* Grapple Research *
+********************
+
+pointer to grapple entity
+802bac80 --> checking for 0x223c pointer Samus grapple
+802a7af0 --> 0x2238 for Link/y. link
+
+**********************
+* Knockback Stacking *
+**********************
+float velX_kb;
+float velY_kb;
+// character.frames_since_last_hit normally = -1
+if (character.frames_since_last_hit < 10){
+	character.velX_kb = velX_kb;
+	character.velY_kb = velY_kb;
+} 
+else {
+	float temp_velX = character.velX_kb * velX_kb;
+	if (temp_velX < 0)
+		character.velX_kb += velX_kb;
+	else{
+		temp_velX = (character.velX_kb >= 0) ? character.velX_kb : -character.velX_kb;
+		float temp2_velX = (velX_kb >= 0) ? velX_kb : -velX_kb;
+		character.velX_kb = (temp2_velX <= temp_velX) ? character.velX_kb : velX_kb;
+	}
+
+	float temp_velY = character.velY_kb * velY_kb;
+	if (temp_velY < 0)
+		character.velY_kb += velY_kb;
+	else{
+		temp_velY = (character.velY_kb >= 0) ? character.velY_kb : -character.velY_kb;
+		float temp2_velY = (velY_kb >= 0) ? velY_kb : -velY_kb;
+		character.velY_kb = (temp2_velY <= temp_velY) ? character.velY_kb : velY_kb;
+	}
+}
+
+-------------------
+
+// function @ 0x8008dc0c
+// f1 = velX_kb = knockback x-velocity from current attack
+// f2 = velY_kb = knockback y-velocity from current attack
+void Damage_KBVel_StackStore(Character* character, float velX_kb, float velY_kb)
+{
+	if (character->frames_since_last_hit < 10){
+		character->velX_kb = velX_kb;
+		character->velY_kb = velY_kb;
+	} 
+	else {
+		if (character->velX_kb * velX_kb < 0)	// if x-velocities are opposite
+			character->velX_kb += velX_kb;
+		else
+			character->velX_kb = (fabsf(character->velX_kb) >= fabsf(velX_kb)) ? character->velX_kb : velX_kb;
+
+		if (character->velY_kb * velY_kb < 0)	// if y-velocities are opposite
+			character->velY_kb += velY_kb;
+		else
+			character->velY_kb = (fabsf(character->velY_kb) >= fabsf(velY_kb)) ? character->velY_kb : velY_kb;
+	}
+}
+
+**********************
+* Netplay Kill Music *
+**********************
+OLD CODE
+$Netplay Safe Kill Music [Dan Salvato, Summate]
+040249a4 38600001
+
+*************
+* OS Clocks *
+*************
+
+0x800000f8 = 162000000 = OS_BUS_CLOCK
+0x800000fc = 486000000 = OS_CORE_CLOCK
+
+OS_TIMER_CLOCK = (OS_BUS_CLOCK/4) = 40500000
+
+// Default Configuration
+#ifndef OS_CORE_CLOCK
+#define OS_CORE_CLOCK       486000000u
+#endif
+#ifndef OS_BUS_CLOCK
+#define OS_BUS_CLOCK        162000000u
+#endif
+#ifndef OS_TIMER_CLOCK
+#define OS_TIMER_CLOCK      (OS_BUS_CLOCK/4)
+#endif
+
+#define OSTicksToCycles( ticks )        (((ticks) * ((OS_CORE_CLOCK * 2) / OS_TIMER_CLOCK)) / 2)
+#define OSTicksToSeconds( ticks )       ((ticks) / OS_TIMER_CLOCK)
+#define OSTicksToMilliseconds( ticks )  ((ticks) / (OS_TIMER_CLOCK / 1000))
+#define OSTicksToMicroseconds( ticks )  (((ticks) * 8) / (OS_TIMER_CLOCK / 125000))
+#define OSTicksToNanoseconds( ticks )   (((ticks) * 8000) / (OS_TIMER_CLOCK / 125000))
+#define OSSecondsToTicks( sec )         ((sec)  * OS_TIMER_CLOCK)
+#define OSMillisecondsToTicks( msec )   ((msec) * (OS_TIMER_CLOCK / 1000))
+#define OSMicrosecondsToTicks( usec )   (((usec) * (OS_TIMER_CLOCK / 125000)) / 8)
+#define OSNanosecondsToTicks( nsec )    (((nsec) * (OS_TIMER_CLOCK / 125000)) / 8000)
+
+#define OSDiffTick(tick1, tick0)        ((s32) (tick1) - (s32) (tick0))
+
+
+---------------
+80375C34 = PostRetraceCallback, function
+
+Zero SISetSamplingRate
+0434ddc8 3B800000
+
+80402ca0 - NTSC sampling rate table
+
+
+OSTime Period = 0x80432a5c
+
+0xa4cb8
+
+800195fc
+
+
+804c1f5c --> pointer to function run after each vertical retrace
+	- 804c0980 (+0x15dc)
+	--> default function pointer is to 8015fda0 (blank blr function)
+
+Set @ 8015ffb8 in main()
+
+Set PADRead() etc. as post-vertical retrace interrupt
+0415ffb8 3C808001
+0415ffbc 608395FC
+
+
+
+
+Modified Controller Port Sampling (1.02) [Achilles]
+04019860 60000000	* Disable the default software poll periodic timer creation
+0434ddc8 3B800000	* Sets 0 as the SISetSamplingRate input --> allows game to get the latest controller status when PADRead() is called just after each vertical retrace interrupt
+0415ffb8 3C808001	* Sets the default software poll timer interrupt handler as the user post vertical retrace callback
+0415ffbc 608395FC
+
+Pre-Retrace Controller Port Sampling
+inject @ 80019860
+
+lis r3,0x8001
+ori r3,r3,0x95fc
+mtlr r3
+lis r4,0x804c
+stw r3,0x1f58(r4)
+blrl
+
+C2019860 00000004
+3C608001 606395FC
+7C6803A6 3C80804C
+90641F58 4E800021
+60000000 00000000
+
+
+
+
+80376bac - noping this byte store causes the game to no longer render frames
+	= PadRawQueueCount
+
+
+804c1e40
+804c1de0 = GXRenderModeObj address start (VIConfigure input pointer)
+
+
+&xfb0 = 0x804f0c00 (from 0x804c0948)
+&xfb1 = 0x80586c00 (from 0x804c094c)
+
+video.c
+804c1d80 = HSD_VIStatus *vi
+
+#define HSD_VI_XFB_DISPLAY 7
+#define HSD_VI_EFB_FREE 0
+
+_p
+0x00	GXRenderModeObj start
+0x00	word	viTVmode
+0x04	half	
+0x3C	word	current.vi.black
+0x54	byte	current.chg_flag
+0x1D8	point	pre_cb			// pre retrace callback
+0x1DC	point	post_cb			// post retrace callback
+0x1E0	word	drawdone.waiting
+0x1E4	word	drawdone.arg
+0x1E8	point	drawdone.cb		// GXDrawDoneCallback
+
+803768d4
+
+804c1f58
+
+// default GXRenderModeObj for NTSC Melee
+GXRenderModeObj GXNtsc480Int = 
+{
+    VI_TVMODE_NTSC_INT,     // viDisplayMode
+    640,             // fbWidth
+    480,             // efbHeight
+    480,             // xfbHeight
+    (VI_MAX_WIDTH_NTSC - 640)/2,        // viXOrigin
+    (VI_MAX_HEIGHT_NTSC - 480)/2,       // viYOrigin
+    640,             // viWidth
+    480,             // viHeight
+    VI_XFBMODE_DF,   // xFBmode
+    GX_FALSE,        // field_rendering
+    GX_FALSE,        // aa
+
+    // sample points arranged in increasing Y order
+     6,  6,  6,  6,  6,  6,  // pix 0, 3 sample points, 1/12 units, 4 bits each
+     6,  6,  6,  6,  6,  6,  // pix 1
+     6,  6,  6,  6,  6,  6,  // pix 2
+     6,  6,  6,  6,  6,  6,  // pix 3
+
+    // vertical filter[7], 1/64 units, 6 bits each
+     0,         // line n-1
+     0,         // line n-1
+    21,         // line n
+    22,         // line n
+    21,         // line n
+     0,         // line n+1
+     0          // line n+1
+};
+
+****************
+* HSD_PadClamp *
+****************
+
+127 * 80 / 179.605 (when x & y joystick = 1.0 = 0x7f)
+
+***********************
+* PAD Origin Research *
+***********************
+
+804A89B0
+2,3,4,5
+
+0x2	byte	x-joystick
+0x3	byte	y-joystick
+0x4	byte	x-cstick
+0x5	byte	y-cstick
+
+0 stored to 0xA
+if positive, subtract
+
+Read in SPEC2_MakeStatus, in PADRead
+
+output (r4, not really output...void) --> buffer for origin offsets
+
+if x-joy = 0x10 = 16
+
+SW = -0.7,-0.7
+SE = 0.65, -0.75
+
+
+
+Silver controller
+X: 0.025
+Y: 0.1
+
+My controller
+X; 0.0875
+Y: 0.0875
+
+P2 D-Pad adjusts P1 pad origin (at CSS)
+- simple test
+Inject @ 80263250
+
+.macro adr_load reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+.endm
+
+.macro  byte_load reg1, reg2, address
+lis \reg2, \address @ha
+lbz \reg1,\address @l (\reg2)
+.endm
+
+.macro  byte_store reg1, reg2, address
+lis \reg2, \address @ha
+stb \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_store reg1, reg2, address
+lis \reg2, \address @ha
+stw \reg1,\address @l (\reg2)
+.endm
+
+.set origin, 0x804a89b0
+.set p2, 0x804C1FF8
+
+adr_load r17,origin
+word_load r15,r15,p2
+rlwinm. r16,r15,0,31,31
+beq- DPAD_LEFT_END
+lbz r18,2(r17)
+extsb r18,r18
+subi r18,r18,1
+stb r18,2(r17)
+b END
+DPAD_LEFT_END:
+rlwinm. r16,r15,0,30,30
+beq- DPAD_RIGHT_END
+lbz r18,2(r17)
+extsb r18,r18
+addi r18,r18,1
+stb r18,2(r17)
+b END
+DPAD_RIGHT_END:
+rlwinm. r16,r15,0,29,29
+beq- DPAD_DOWN_END
+lbz r18,3(r17)
+extsb r18,r18
+subi r18,r18,1
+stb r18,3(r17)
+b END
+DPAD_DOWN_END:
+rlwinm. r16,r15,0,28,28
+beq- DPAD_UP_END
+lbz r18,3(r17)
+extsb r18,r18
+addi r18,r18,1
+stb r18,3(r17)
+b END
+DPAD_UP_END:
+
+END:
+lbz r0,-0x49ae(r13)
+
+
+
+
+
+----------------
+L: 0.000000
+X:-20 Y:-30
+
+.long 0x4cc63242
+
+X:%3d Y:%3d
+583a25336420593a253364
+
+.asciz "X:%3d Y:%3d\n"
+.balign 4
+
+Testing
+- stack overflowing 80302d4c
+
+8040a67c
+
+.macro adr_load reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+.endm
+
+.macro  byte_load reg1, reg2, address
+lis \reg2, \address @ha
+lbz \reg1,\address @l (\reg2)
+.endm
+
+.macro  byte_store reg1, reg2, address
+lis \reg2, \address @ha
+stb \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.macro  word_store reg1, reg2, address
+lis \reg2, \address @ha
+stw \reg1,\address @l (\reg2)
+.endm
+
+.set origin, 0x804a89b0
+.set p2, 0x804C1FF8
+
+adr_load r5,origin
+mulli r4,r31,0xc
+add r5,r5,r4
+lbz r6,3(r5)
+lbz r5,2(r5)
+bl TEXT
+mflr r7
+lis r4,0x8030
+ori r4,r4,0x2d4c
+mtlr r4
+mr r4,r7
+
+b END
+
+TEXT:
+blrl
+.long 0x583a2533
+.long 0x6420593a
+.long 0x2533644a
+
+.long 0x583a2025
+.long 0x372e3466
+.long 0x4a593a20
+.long 0x25372e34
+.long 0x660a4358
+.long 0x3a202537
+.long 0x2e346643
+.long 0x593a2025
+.long 0x372e3466
+.long 0x0a4c3a20
+.long 0x25382e36
+.long 0x66523a20
+.long 0x25382e36
+.long 0x66000000
+END:
+
+****************
+* Console Type *
+****************
+
+u32 consoleType @ 8000002c
+
+= 00000003 on my hacked Wii
+= 10000006 on Dolphin
+
+#define OS_CONSOLE_RETAIL4          0x00000004
+#define OS_CONSOLE_RETAIL3          0x00000003
+#define OS_CONSOLE_RETAIL2          0x00000002
+#define OS_CONSOLE_RETAIL1          0x00000001
+#define OS_CONSOLE_DEVHW4           0x10000007
+#define OS_CONSOLE_DEVHW3           0x10000006
+#define OS_CONSOLE_DEVHW2           0x10000005
+#define OS_CONSOLE_DEVHW1           0x10000004
+#define OS_CONSOLE_MINNOW           0x10000003
+#define OS_CONSOLE_ARTHUR           0x10000002
+#define OS_CONSOLE_PC_EMULATOR      0x10000001
+#define OS_CONSOLE_EMULATOR         0x10000000
+#define OS_CONSOLE_DEVELOPMENT      0x10000000  // bit mask
+
+u32     OSGetConsoleType( void );
+
+
+--------
+
+Lagless FoD
+
+inject @ 801cbb90
+
+.macro overwriteEntry adr, orig, noLag
+.long \adr
+.long \orig
+.long \noLag
+.endm
+
+.macro  word_load reg1, reg2, address
+lis \reg2, \address @ha
+lwz \reg1,\address @l (\reg2)
+.endm
+
+.macro  adr_load reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+.endm
+
+.macro  adr_blrl reg, address
+lis \reg, \address @h
+ori \reg,\reg,\address @l
+mtlr \reg
+blrl
+.endm
+
+.set tableEnd, 0
+.set tableEntryLength, 0xc
+.set tableOrig, 4
+.set tableNoLag, 8
+
+.set DebugMenu.FoD, 0x803fa3ac
+.set OSBootInfo.consoleType, 0x8000002c
+
+stwu sp,-0x8(sp)
+
+word_load r3,r3,DebugMenu.FoD
+cmpwi r3,0
+beq- ORIG
+cmpwi r3,1
+beq- NO_LAG
+
+word_load r3,r3,OSBootInfo.consoleType
+rlwinm. r3,r3,0,3,3	# 0x10000000 --> no lag on Dolphin
+bne- NO_LAG
+
+li r4,0
+li r6,0
+lis r3,0x8045
+ori r3,r3,0x3088
+
+PLAYER_LOOP:
+mulli r5,r4,0xe90
+lwzx r5,r5,r3
+cmpwi r5,3
+beq+ PLAYER_LOOP_CONTINUE
+addi r6,r6,1
+PLAYER_LOOP_CONTINUE:
+addi r4,r4,1
+cmpwi r4,6
+bne+ PLAYER_LOOP
+
+
+cmpwi r6,4
+blt+ ORIG
+NO_LAG:
+# add shadow render flag to "frozen" water ground
+# note: The hardcoded subtraction offset could cause problems if
+# structure of the FoD file internals were moved
+.set StageInfo.GrGroundParam, 0x8049ED78
+word_load r6,r6,StageInfo.GrGroundParam
+adr_load r5,0x0002ae44
+sub r5,r6,r5
+lbz r6,0(r5)
+ori r6,r6,4	# add shadow render flag
+stb r6,0(r5)
+
+li r5,tableNoLag
+b CONTINUE
+ORIG:
+li r5,tableOrig
+CONTINUE:
+
+bl TABLE
+mflr r3
+subi r3,r3,tableEntryLength
+LOOP:
+lwzu r4,tableEntryLength(r3)
+cmpwi r4,tableEnd
+beq- END
+STORE:
+lwzx r6,r5,r3
+stw r6,0(r4)
+li r0,0
+icbi r0,r4
+sync
+isync
+b LOOP
+
+TABLE:
+blrl
+overwriteEntry 0x801cc8ac, 0xec0007fa, 0xfc000028
+overwriteEntry 0x801cbe9c, 0x4bffc29d, 0x60000000
+overwriteEntry 0x801cbef0, 0x80840030, 0x60000000
+overwriteEntry 0x801cbf54, 0x48000bc5, 0x60000000
+overwriteEntry 0x80390838, 0x4bfffe05, 0x60000000
+overwriteEntry 0x801cd250, 0x48174f81, 0x60000000
+overwriteEntry 0x801ccdcc, 0x387f01d4, 0x480000b4
+.long tableEnd
+
+END:
+
+

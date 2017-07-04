@@ -587,71 +587,6 @@ FD
 FE 
 FF
 
-D-pad moves
------------
-1: Nothing
-2: call 0x80001b10
-3: ToggleComputer
-4: Become visible
-5: Become invisible
-8: Get big mushroom in hand
-9: Get mini mushroom in hand
-18:POW block effect
-35:Clear all status effects
-36:ToggleComputer0
-37:ToggleComputer1
-38:ToggleComputer2
-39:ToggleComputer3
-40:Hammerhead
-
-Item bits to item switch entries
---------------------------------
-Item 0x04
-0x08=POW box
-0x04=Poke Ball
-0x02=Invisibility
-0x01=Metal Box
-
-Item 0x03
-0x80=Bunny Hood
-0x40=Screw Attack
-0x20=Warp Star
-0x10=Hammer
-0x08=Poison Mushroom
-0x04=Super Mushroom
-0x02=Fire Flower
-0x01=Fan
-
-Item 0x02
-0x80=Lipstick
-0x40=Star Rod
-0x20=Super Scope
-0x10=Flipper
-0x08=Motion-Sensor Bomb
-0x04=Food
-0x02=Freezie
-0x01=Ray Gun
-
-Item 0x01
-0x80=Red Shell
-0x40=Green Shell
-0x20=Parasol
-0x10=Beam Sword
-0x80=Home-Run Bat
-0x04=Starman
-0x02=Maxim Tomato
-0x01=Heart Container
-
-Item 0x00
-0x80=Mr. Saturn
-0x40=Bob-omb
-0x20=Barrel Cannon
-0x10=Party Ball
-0x08=Probably nothing, on by default
-0x04=Barrel
-0x02=Crate
-0x01=Capsule
-
 
 Menu IDs (menu major)
 ------------------
@@ -718,27 +653,6 @@ Button Inputs
 	0002 = D RIGHT
 
 
-Stage configuration word (Crazy Mod Specific)
-------------------------
-SC word 1:
-#  0x01: Big mushrooms are deadly
-#  0x02: Small mushrooms are deadly
-#  0x04: Any damage is deadly
-#  0x08: Players are invisible
-#  0x10: Items are invisible
-#  0x20: D-pad moves cost coins instead of health.
-#  0x40: Items never disappear
-#  0x80: Fixed camera
-SC word 2:
-#  0x01: Stage locked (no changing by graphical menu)
-#  0x02: Top/bottom of dummy wraps around
-#  0x04: Sides of dummy wrap around
-#  0x08: Infinite 3rd jumps
-#  0x10: Players stuck to the floor
-#  0x20: Item steal enabled
-#  0x40: Hot saturn potato enabled
-#  0x80: Fancy throwing enabled
-
 
 ********************************************************
 		Struct types
@@ -801,58 +715,6 @@ r3 = 4 -> User pressed B on menu.
 It seems returning 0 is the norm.
 
 
-  Move tables
--------------------------------------------
-move_t
-{
-	int index
-	int unknown1
-	int unknown2
-	void *onentryfunc (?) (notcalled?)
-	void *somefunc
-	void *somefunc
-	void *somefunc
-	void *usually800761C8
-};
-
-The index is the most interesting.  At first I thought it was just
-some sort of animation index, because it sort of corresponds to the
-index of the move_t in the table, but not really.  No, though, it
-actually controls quite a bit more than that.  You can change just
-the index for something and get a completely different move.  Current
-best theory is that the index goes into yet another table somewhere
-that controls move, and the functions are only concerned with graphical
-effects.
-
-Note:  the index does not link to the "button to move link function
-tables".  Mewtwo's down+b and side+b don't match up.
-
-Argh, index, why do you toy with me so?  80085cd8 receives the player
-and the index.  If I force the index to always be the same, then
-THE ANIMATIONS ARE ALWAYS THE SAME.  In general, moves still work the same
-way, but not always.  (There's a timing constraint related to the animation.)
-
-More update.  I tried replacing all 7 things EXCEPT the index.  The move
-STILL won't work.  It took away the rapid fire a button attack.  If I set
-the index, the move started /looking/ right, but was still not working.
-
-Current best theory: Actual work for b button moves is in button move
-link functions.  I am seriously starting to thing that the entire move_t
-is nothing but graphical.
-
-No, no, those functions DO AFFECT GAMEPLAY.  I'm wondering if CharStateChange
-should be renamed to "RunMove".  Noping out the call to charstatechange in the
-button move link function for side+b results in _NO MOVE BEING PERFORMED_.
-
-Each of those functions is called every frame.  Somewhere inside, useful
-stuff happens.  Dandy-tastic.
-
-Here's a mind bender.  Replacing EVERY ONE OF MARIO'S SIDE B VALUES
-with an empty function does NOTHING to affect the move.  It only affects
-whether mario comes to a full stop before waving the cape.
-
-
-
 The player type.
 ----------------------------------------------
 DataOffset
@@ -863,7 +725,7 @@ loading a pointer value 44 bytes ahead of the root "player"
 struct.  (I think this root struct is actually a generic entity
 for the game)
 
-subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
+subplayer_t (size = 0x23EC bytes)
 {
 	0x0000  point  Pointer back to entity_t
 	0x0004  word   Character ID (internal)
@@ -925,6 +787,7 @@ subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
 	0x0114  float  Walk acceleration
 	0x0118  float  walk maximum velocity
 	0x011C  float  slow walk max?
+	0x0128  float  ground friction
 	0x014C	float  Jump H initial velocity
 	0x0150	float  Jump V initial velocity
 	0x0154	float  Ground to air jump momentum multiplier
@@ -1296,11 +1159,13 @@ subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
 	0x1A0C  byte   ?? 8007af10
 	0x1A34	float	unk, assigned on reflect bubble activation (includes power shield.)
 	0x1A38	float	unk, same as above--different value
-	0x1A44	word	Rapid Jab button count (counts each push and release of A button during rapid jab startup window)
+	0x1A44	word	??
 	0x1A4C	float  breakout countdowns (sleep,grab,grounded)
-	0x1A50	byte   ??
-	0x1A51	byte   ??
-	0x1A54	word	Jab window counter
+	0x1A50	byte   breakout x-joystick direction input (to make sure new direction is different than old direction)
+	0x1A51	byte   breakout y-joystick direction input
+	0x1A52	byte   ?? grab breakout something
+	0x1A53	byte   ?? grab breakout something
+	0x1A54	word	Rapid Jab A button counter (counts each push and release of A button during rapid jab startup window)
 	0x1A58	word   Player held/being held by
 	0x1A5C	word   Also player held/being held by
 	0x1A60  word   ?? Maybe Item_t in range?
@@ -1373,10 +1238,16 @@ subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
     0x2160  word   ??
     0x2164  word   ?? set to 0 upon death
 	0x216C  float  ?? set to upon grabbing
+	0x2190	word	?? set when grabbing?
+	0x2194	word	?? set when grabbing?
+	0x2198	word	?? set when grabbing?
 	0x219C  point  IASA Function
 	0x21A0  point  Animation Interrupt
 	0x21A4  point  action physics (per frame)
 	0x21A8  point  collision interrupt function
+	0x21B0	point	?? blrl @ 8006c748
+	0x21B4	point	?? blrl @ 8006c68c (pointer to check for samus grapple active?)
+	0x21B8	point	?? blrl @ 8006c680
 	0x21BC  point  action state function of some sort?
 	0x21C0	point  ??
 	0x21CC	word   pointer
@@ -1432,6 +1303,7 @@ subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
 		(00000020) = CharObjectFlagModify next action state change
 	0x221E  byte   Flags
 		(00000001) = ??
+		(00000002)	= grabbing
 		(00000004)  1=invis, 0=visible [from event scripts]
 		(00000080)  1=invis, 0=visible [from action state functions]
 	0x221F  byte   Flags
@@ -1462,6 +1334,7 @@ subplayer_t (size roughly 0x2400 bytes, believed 0x23EC)
 		(00000010) = ?? No color overlays allowed
 	0x2224  byte   Flags
 		(00000001) = walljumping enabled
+		(00000002) = ?? something with breakout counters
 		(00000020) = stamina lie dead, can't input anything
 		(00000040) = cannot catch item
 	0x2225	byte	Flags
@@ -1635,7 +1508,11 @@ sub_item_t (size: 0x1000)
 	0xDC8:	byte,
     0xDCD:  byte, 
 	0xDD4:	pointer	bone structure
-	0xDDC:	!= 0 -> harmless bomb?.  no.
+	0xDD8:	word	Peach turnip type (smile = 0, T-eyes, line eyes, circle eyes, upward curve, wink, dot, stitch)
+	0xDDC:	word	!= 0 -> harmless bomb?.  no.
+	0xDE0:	float	player scale
+	0xDE4:	pointer	player_t* owner again?, at least when pulling turnip
+	0xDE8:	float	player scale (bomb omb only?)
 	0xDEC:  byte	(00000040) = ?? checked for coin item
 	0xE00:	player_t: owner
 };
@@ -1903,6 +1780,7 @@ P6 - 80457950
 	0xB0: void*	pointer to player_t
 	0xB4: void*	pointer to player_t for nana/zelda/sheik, if applicable
     0xB8: pointer function player_init (? --> see Yoshi Spawn Team, 0x80031c98)
+    0xBC:	--New Substructure--
     0xBC:  int	stale move, current entry index
     0xC0:  Stale move list start
     0xE4:  Stale move list end
@@ -1925,6 +1803,8 @@ P6 - 80457950
 	0xD4C: word	counter of some sort (hammer)
 	0xD60: int	total number of attacks landed
 	0xDA0: int	# of times hit by attacks with 150+ knockback
+	0xDA8: int	total frames character was grabbed (CatchWait only, I think)
+	0xDAC: int	total grab mashes (on a per frame basis, so button+direction double mash only increments this once)
 	0xDC0: int	longest drought
         0xDDC: int	air time
         0xDE0: int	ground time

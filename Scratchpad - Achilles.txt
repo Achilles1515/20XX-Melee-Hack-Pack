@@ -22125,10 +22125,14 @@ mtlr	r12
 mr r3,r31
 blrl
 mr r3,r31
+lwz r12,0x28(r3)
+cmpwi r12,0
+beq- STRUCT_LOOP_ZERO_SPECIAL_END
 lis r12,0x8030
 ori r12,r12,0x2bb0	# zero special ASCII
 mtlr r12
 blrl
+STRUCT_LOOP_ZERO_SPECIAL_END:
 lwz	r3,0x30(r31)	# load next struct
 cmpwi	r3,0
 bne-	STRUCT_LOOP

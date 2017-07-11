@@ -11349,6 +11349,8 @@ b COSTUME_INIT_SECONDARY_CHAR
 COSTUME_INIT_SECONDARY_CHECK_END:
 COSTUME_INIT_COMPARE:
 addi r3,r3,1
+cmpwi r3,3	# disable for G&W --> no alt costumes
+beq- COSTUME_INIT_COMPARE
 cmpwi r3,0x20
 blt- COSTUME_INIT_LOOP
 
@@ -28548,9 +28550,7 @@ PLAYER_LOOP_CONTINUE:
 addi r4,r4,1
 cmpwi r4,6
 bne+ PLAYER_LOOP
-
-
-cmpwi r6,4
+cmpwi r6,3	# 3 players or more = lagless
 blt+ ORIG
 NO_LAG:
 # add shadow render flag to "frozen" water ground

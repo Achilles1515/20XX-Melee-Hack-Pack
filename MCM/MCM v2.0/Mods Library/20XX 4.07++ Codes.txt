@@ -2884,17 +2884,6 @@ Version -- DOL Offset ------ Hex to Replace ---------- ASM Code
 	-==-
 
 
-Ness - PK Thunder V1.00
-[Glook]
-Version -- DOL Offset ------ Hex to Replace ---------- ASM Code
-1.02 ----- 0x802abcb0 --- 4BFFFC5D -> 4bfc7481
-
-1.02 ----- 0x802abcb4 --- 38600001 -> 60000000
-
-
-
-	-==-
-
 
 Flush Cache on Scene Change
 [Dan Salvato]
